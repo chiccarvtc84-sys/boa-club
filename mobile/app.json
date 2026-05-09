@@ -1,0 +1,64 @@
+{
+  "expo": {
+    "name": "Boa Club",
+    "slug": "boa-club",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "scheme": "boaclub",
+    "primaryColor": "#DC2626",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#1a1a1a"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "fr.boaclub.app",
+      "buildNumber": "1",
+      "googleServicesFile": "./GoogleService-Info.plist",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSCameraUsageDescription": "Pour envoyer des photos dans les messages.",
+        "NSPhotoLibraryUsageDescription": "Pour partager des photos dans les messages.",
+        "NSMicrophoneUsageDescription": "Pour envoyer des notes vocales dans les messages."
+      }
+    },
+    "android": {
+      "package": "fr.boaclub.app",
+      "versionCode": 1,
+      "googleServicesFile": "./google-services.json",
+      "permissions": [
+        "CAMERA",
+        "RECORD_AUDIO",
+        "READ_EXTERNAL_STORAGE",
+        "POST_NOTIFICATIONS"
+      ],
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#1a1a1a"
+      },
+      "edgeToEdgeEnabled": true,
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-notifications",
+        {
+          "color": "#DC2626"
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "TO_FILL_AFTER_eas_init"
+      }
+    },
+    "owner": "TO_FILL_WITH_YOUR_EXPO_USERNAME"
+  }
+}

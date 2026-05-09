@@ -1,0 +1,50 @@
+# === Go ===
+api/bin/
+api/tmp/
+*.exe
+*.test
+*.out
+api/coverage.txt
+
+# === Variables d'environnement ===
+.env
+api/.env
+mobile/.env
+*.env.local
+
+# === Hot reload (air) ===
+.air.toml
+tmp/
+
+# === IDEs ===
+.vscode/
+.idea/
+*.swp
+*~
+
+# === OS ===
+.DS_Store
+Thumbs.db
+
+# === Mobile (à venir) ===
+mobile/node_modules/
+mobile/.expo/
+mobile/dist/
+
+# === Logs ===
+*.log
+
+# === Secrets (Firebase, Apple, Google Play, etc.) ===
+api/firebase-admin-key.json
+api/firebase-admin*.json
+api/serviceAccount*.json
+mobile/google-services.json
+mobile/GoogleService-Info.plist
+mobile/.eas/
+mobile/eas.json.local
+*.p8
+*.p12
+*.mobileprovision
+*.keystore
+*.jks
+.test-refresh.tmp

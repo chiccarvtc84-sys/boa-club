@@ -1,0 +1,1290 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Boa Club — Prototype</title>
+<style>
+body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #1a1a1a; }
+.proto-bg { background: #1a1a1a; padding: 24px 12px; border-radius: 0; min-height: 100vh; box-sizing: border-box; }
+.phone { width: 340px; margin: 0 auto; background: #000; padding: 10px; border-radius: 36px; box-shadow: 0 0 30px rgba(220, 38, 38, 0.15); }
+.screen-area { background: #FFFFFF; border-radius: 28px; overflow: hidden; height: 680px; display: flex; flex-direction: column; position: relative; color: #1a1a1a; }
+.statusbar { display: flex; justify-content: space-between; align-items: center; padding: 8px 18px 4px; font-size: 11px; font-weight: 500; color: #1a1a1a; flex-shrink: 0; }
+.statusbar .icons { display: flex; gap: 4px; align-items: center; }
+.statusbar .dot { width: 4px; height: 4px; background: #1a1a1a; border-radius: 50%; }
+
+.app-header { padding: 8px 12px 10px 14px; border-bottom: 0.5px solid #E5E5E5; display: flex; justify-content: space-between; align-items: center; gap: 8px; background: #FFFFFF; flex-shrink: 0; }
+.app-header-left { display: flex; align-items: center; gap: 9px; flex: 1; min-width: 0; }
+
+.brand-logo {
+  width: 38px; height: 38px; flex-shrink: 0;
+  background-image: url("data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCABAAEADASIAAhEBAxEB/8QAGwAAAgMBAQEAAAAAAAAAAAAAAAgEBgcFAwH/xAA/EAABAgUDAQQECgkFAAAAAAABAgMABAUGEQcSITETQVFhFiIjcRQVJDNSVVaBldIIJjJCRHKRlNNigpKTov/EABYBAQEBAAAAAAAAAAAAAAAAAAACBP/EAB0RAQABAwUAAAAAAAAAAAAAAAABAgMREhMiMUH/2gAMAwEAAhEDEQA/APWvaUW1J6rVynVWmzkw3VpVyp0RuWmywHHUAl6VHduydye4Axkq69pWhRSu0LkSoHBBq4BB/wCMOBrLbk3W7WTPUQYuGiPJqVNUByXG+S35hacpx3nELRqbI6bhym3ZM0m5VStzNqnQqnzjCGW3s4ea2qQSFJV15xzxAVX0g0q+yNx/i4/LB6QaVfZG4/xcfliD8K0o+qr0/v5b/HH1M1pOVDdS71A7yJ+WPH/XATfSDSr7I3H+Lj8sHpBpV9kbj/Fx+WOzqDb+k1n1tqmFF3T7qpZqZWpqbYb7LtE7koUFN53bSkn+YRWfhWlH1Ven9/Lf44DU6FZum9Rs9q4JqgV2Sl3UuOoaXU9ylNp4Cun7yhtA78p+kI6dK0otec1Rt2lUmmzrCZCWRVq03MzReDW7HYyx7txPKv8ATHtad/2fc0pOTCaHWJKjW5LInne0mGuxw1wyxgDJ3K2gJ79gz0jXdFqDOU+2361XU4uG4XjUp7PVvd8215BCMDHcSYinVmc9NN2bO3TFuOXstChZdSLHCqjcdiobAl6yF3BbZPRucQPlEsn+YZIHQAwzUUPWS3Juu2oJyiercNGeTUqasDkut8lHmFpynHTOItmI1pbSbZq12inXvOTdOp7jTmJllaUdm4kbgF7knggKHjkiJOntIpVQvCcqUy08bWoqXKlMIfUCtbKFezZUQACpxRQjjH7R8I6euNIlHKtT7wobWyi3OyZxKB0YmQcPtHzC+f8Ad5REuX9VNOqXbqPUqda2Vep46pawRKsn7ip0g/TT4QEnTq257WLVZ0VR51KJpxyeqMw11bRnJCc5AySlI8M+URtb7Xt2zr2XQbXmZ6bEq2kTTk0tCsOnnYnakdAU58yR3RWrXu2v2qqYVbtVmqcqYCQ6Zde0rCc4z/U/1jRdEKDTK/V61e14VUuMW+oVOcl3Gytc2o7lJJWTjlY6cknjvgNM04sTszbViPNcjZclz8d/8NKK+/BKT4EiGkjPdF6JOSdvzNerqNtwXE98ZTgPVpKh7Jn3IRgY7iTGhQBBBBALxcVmUtq96hZlbl3HKBWpj0hoyG8ApmmzmZlUk9N6c8cABXjC9WslGo2t8mLpdTKt1So5fQrIAAztYHhwlLY8OIdHWO2Zq4bTMxRvUuCkOpqVMcA57ZvnZ5hQynHTkeEJ5rTItCsUm/LdSqXp1wo+GpCODKziD7ZvyIX633nHSAuv6YF3MTdwyVpUtLSJWmJD00G0gAvKT6qePooP/s+EWHS+xdstbdkvNetMbLkuXI6Ng/JZRXvOFFJ8zGQ6U04XZfk/c12uqepVKC6zVnlj50g7gjwyteBt7xnEOJoxR5tigzVxVxvbXrje+MZoHq0gjDLPuQjAwehJgNCEEEEAQQQQBC1ajWSj47uGyChKJG5Aut0BR4SxUWx7ZkeAWnnwAVxDKxRtYbYmLjtBa6Sezr1LdTUaY6OqX2+Qn3KGU/ePCAxHTaw1MS1u2LMslL02UXFcwI5S0k/JpRXvVglJ5GCYacDAjO9F6NPs0KbuS4W9lw3G8J+bSQQWUYwyyM8gIRjg8gkxokAQQQQH/9k=");
+  background-size: contain; background-repeat: no-repeat; background-position: center;
+  border-radius: 4px;
+}
+
+.app-title { font-size: 16px; font-weight: 600; margin: 0; letter-spacing: -0.2px; }
+.app-subtitle { font-size: 11px; color: #6B7280; margin: 1px 0 0; }
+.btn-back { background: transparent; border: 0; cursor: pointer; padding: 0; font-size: 22px; color: #1a1a1a; width: 22px; line-height: 1; flex-shrink: 0; }
+.header-action { background: #DC2626; color: white; border: 0; border-radius: 999px; padding: 5px 11px; font-size: 12px; font-weight: 600; cursor: pointer; font-family: inherit; display: flex; align-items: center; gap: 3px; flex-shrink: 0; }
+.header-action svg { width: 14px; height: 14px; }
+
+.screen-body { flex: 1; overflow-y: auto; padding: 10px 14px 12px; scrollbar-width: none; -ms-overflow-style: none; }
+.screen-body::-webkit-scrollbar { display: none; }
+.screen { display: none; flex-direction: column; flex: 1; overflow: hidden; }
+.screen.active { display: flex; }
+
+.tabbar { display: flex; justify-content: center; gap: 0; background: #FFFFFF; border-top: 0.5px solid #E5E5E5; flex-shrink: 0; padding: 5px 0 6px; }
+.tab { width: 70px; flex: 0 0 70px; padding: 0; background: transparent; border: 0; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 9.5px; color: #6B7280; font-family: inherit; line-height: 1.05; font-weight: 600; }
+.tab.active { color: #DC2626; }
+.tab.active svg { color: #DC2626; }
+.tab svg { width: 17px; height: 17px; stroke-width: 2.2; color: #6B7280; }
+
+.day-tabs { display: flex; gap: 6px; overflow-x: auto; padding: 10px 12px; scrollbar-width: none; flex-shrink: 0; background: #FFFFFF; border-bottom: 0.5px solid #E5E5E5; }
+.day-tabs::-webkit-scrollbar { display: none; }
+.day-tab {
+  flex: 0 0 auto;
+  padding: 6px 12px 5px;
+  background: #FFFFFF;
+  border: 1.5px solid #E5E5E5;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  font-family: inherit;
+  min-width: 44px;
+  transition: background 0.15s;
+}
+/* JOUR S\u00c9LECTIONN\u00c9 — l\u00e9g\u00e8rement gris\u00e9 + bordure rouge */
+.day-tab.active {
+  background: #E5E7EB;
+  border-color: #DC2626;
+  border-width: 2px;
+  padding: 5.5px 11.5px 4.5px;
+}
+.day-tab .dt-label { font-size: 10px; text-transform: uppercase; font-weight: 800; letter-spacing: 0.6px; color: #DC2626; }
+.day-tab .dt-num { font-size: 17px; font-weight: 800; color: #1a1a1a; }
+.day-tab .dot-mark { width: 5px; height: 5px; border-radius: 50%; background: #DC2626; margin-top: 2px; display: none; }
+.day-tab.has-alert .dot-mark { display: block; }
+
+.day-panels { flex: 1; display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; }
+.day-panels::-webkit-scrollbar { display: none; }
+.day-panel { flex: 0 0 100%; scroll-snap-align: start; overflow-y: auto; padding: 12px 14px 16px; scrollbar-width: none; -ms-overflow-style: none; }
+.day-panel::-webkit-scrollbar { display: none; }
+
+.followed-banner { background: #F9FAFB; border-radius: 8px; padding: 8px 11px; font-size: 11.5px; color: #4B5563; margin-bottom: 10px; line-height: 1.4; border: 0.5px solid #E5E5E5; }
+.followed-banner .link { color: #DC2626; font-weight: 600; cursor: pointer; }
+
+.card { background: #FFFFFF; border: 0.5px solid #E5E5E5; border-radius: 10px; padding: 11px 12px; margin-bottom: 8px; }
+.course-time { font-size: 11px; color: #4B5563; margin: 0; font-weight: 600; letter-spacing: 0.3px; }
+.course-name { font-size: 14px; font-weight: 600; margin: 2px 0 0; color: #1a1a1a; }
+.course-coach { font-size: 12px; color: #4B5563; margin: 3px 0 0; cursor: pointer; }
+.course-location { font-size: 11px; color: #6B7280; margin: 2px 0 0; font-style: italic; }
+.row-end { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+.bell-icon { width: 18px; height: 18px; color: #9CA3AF; flex-shrink: 0; }
+.bell-icon.on { color: #DC2626; }
+
+.badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 10px; font-weight: 600; letter-spacing: 0.2px; text-transform: uppercase; }
+.b-gi { background: #1a1a1a; color: white; }
+.b-nogi { background: #DC2626; color: white; }
+.b-mma { background: #FEE2E2; color: #991B1B; border: 0.5px solid #DC2626; }
+.b-mix { background: #F3F4F6; color: #1a1a1a; }
+.b-tech { background: #FEF3C7; color: #92400E; }
+.b-drill { background: #DBEAFE; color: #1E40AF; }
+.b-spar-l { background: #E0E7FF; color: #3730A3; }
+.b-spar-h { background: #1a1a1a; color: #FCA5A5; border: 0.5px solid #DC2626; }
+.b-open { background: #ECFDF5; color: #065F46; }
+
+.alert { padding: 7px 10px; border-radius: 8px; font-size: 11.5px; margin-top: 8px; line-height: 1.4; font-weight: 500; }
+.alert-late { background: #FEF3C7; color: #92400E; border-left: 3px solid #F59E0B; }
+.alert-absent { background: #FEE2E2; color: #991B1B; border-left: 3px solid #DC2626; }
+.alert strong { font-weight: 700; }
+
+.empty-day { text-align: center; padding: 50px 20px 20px; color: #4B5563; font-size: 13px; line-height: 1.5; }
+.empty-day-icon { font-size: 28px; margin-bottom: 8px; opacity: 0.3; }
+
+.day-header { font-size: 11px; font-weight: 700; color: #4B5563; margin: 6px 0 6px; text-transform: uppercase; letter-spacing: 0.6px; }
+.day-header:first-child { margin-top: 0; }
+.slot-card { background: #FFFFFF; border: 0.5px solid #E5E5E5; border-radius: 10px; padding: 11px 12px; margin-bottom: 8px; cursor: pointer; }
+.slot-meta { display: flex; gap: 4px; margin-top: 6px; flex-wrap: wrap; }
+.slot-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; padding-top: 10px; border-top: 0.5px solid #E5E5E5; }
+.slot-creator { font-size: 11px; color: #4B5563; }
+.avatar-stack { display: flex; align-items: center; }
+.avatar { width: 24px; height: 24px; border-radius: 50%; border: 1.5px solid white; margin-left: -7px; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 600; flex-shrink: 0; cursor: pointer; }
+.avatar:first-child { margin-left: 0; }
+.av-1 { background: #1a1a1a; color: white; }
+.av-2 { background: #DC2626; color: white; }
+.av-3 { background: #6D28D9; color: white; }
+.av-4 { background: #1E3A8A; color: white; }
+.av-5 { background: #7C2D12; color: white; }
+.count-pill { font-size: 11px; color: #4B5563; margin-left: 8px; font-weight: 600; }
+
+.btn-primary { background: #DC2626; color: white; border: 0; padding: 9px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; }
+.btn-primary.full { width: 100%; padding: 11px; font-size: 14px; }
+.btn-outline { background: transparent; color: #1a1a1a; border: 1px solid #1a1a1a; padding: 9px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; }
+.btn-outline.full { width: 100%; padding: 10px; font-size: 14px; }
+
+.detail-block { background: #F9FAFB; border-radius: 10px; padding: 12px; margin-bottom: 10px; border: 0.5px solid #E5E5E5; }
+.detail-label { font-size: 11px; color: #4B5563; margin: 0 0 3px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; }
+.detail-value { font-size: 14px; margin: 0; line-height: 1.4; }
+.detail-value.big { font-size: 16px; font-weight: 600; }
+
+.participants-row { display: flex; align-items: center; padding: 10px 0; border-bottom: 0.5px solid #E5E5E5; gap: 10px; cursor: pointer; }
+.participants-row:last-child { border-bottom: 0; }
+.participant-name { font-size: 13px; font-weight: 600; flex: 1; display: flex; align-items: center; gap: 6px; min-width: 0; }
+.you-tag { font-size: 10px; color: #6B7280; font-weight: 400; }
+.participant-meta { font-size: 11px; color: #4B5563; }
+.section-title { font-size: 13px; font-weight: 700; margin: 16px 0 4px; text-transform: uppercase; letter-spacing: 0.4px; color: #1a1a1a; }
+
+.scope-banner { display: flex; align-items: center; gap: 7px; padding: 6px 14px; font-size: 11px; flex-shrink: 0; font-weight: 500; background: #F9FAFB; color: #1a1a1a; border-bottom: 0.5px solid #E5E5E5; }
+.scope-banner svg { width: 12px; height: 12px; flex-shrink: 0; }
+
+.chat-msg { max-width: 78%; padding: 8px 12px; border-radius: 18px; margin-bottom: 3px; word-wrap: break-word; }
+.chat-msg.them { background: #F1F1F2; color: #1a1a1a; align-self: flex-start; border-bottom-left-radius: 4px; }
+.chat-msg.mine { background: #DC2626; color: white; align-self: flex-end; border-bottom-right-radius: 4px; }
+.chat-text { font-size: 13.5px; margin: 0; line-height: 1.35; }
+.chat-list { display: flex; flex-direction: column; gap: 2px; }
+.chat-list.dm { padding: 12px 12px 8px; }
+
+.dm-messages { flex: 1; overflow-y: auto; display: flex; flex-direction: column; background: #FFFFFF; scrollbar-width: none; }
+.dm-messages::-webkit-scrollbar { display: none; }
+
+.msg-input-bar { display: flex; gap: 4px; padding: 6px 8px; border-top: 0.5px solid #E5E5E5; background: #FFFFFF; flex-shrink: 0; align-items: center; }
+.msg-icon-btn { width: 30px; height: 30px; border-radius: 50%; border: 0; background: transparent; cursor: pointer; color: #DC2626; padding: 0; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.msg-icon-btn svg { width: 20px; height: 20px; }
+.msg-icon-btn.hidden { display: none; }
+.msg-input-wrap { flex: 1; position: relative; display: flex; align-items: center; }
+.msg-input { width: 100%; border: 0.5px solid #E5E5E5; border-radius: 999px; padding: 7px 12px; font-size: 13px; background: #F9FAFB; font-family: inherit; outline: none; box-sizing: border-box; color: #1a1a1a; }
+.msg-send { width: 30px; height: 30px; border-radius: 50%; background: #DC2626; color: white; border: 0; cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; padding: 0; }
+.msg-send.hidden { display: none; }
+
+.form-field { margin-bottom: 14px; }
+.form-label { display: block; font-size: 12px; color: #4B5563; margin-bottom: 5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; }
+.form-input { width: 100%; padding: 9px 11px; border-radius: 8px; border: 0.5px solid #E5E5E5; background: #FFFFFF; font-size: 13px; box-sizing: border-box; font-family: inherit; color: #1a1a1a; }
+.form-row { display: flex; gap: 8px; }
+.form-row > * { flex: 1; }
+.option-row { display: flex; gap: 5px; flex-wrap: wrap; }
+.option-pill { padding: 6px 11px; border-radius: 999px; border: 0.5px solid #E5E5E5; background: #FFFFFF; font-size: 11.5px; cursor: pointer; font-family: inherit; color: #1a1a1a; font-weight: 500; }
+.option-pill.selected { border-color: #1a1a1a; background: #1a1a1a; color: white; font-weight: 600; }
+
+.profile-hero { display: flex; align-items: center; gap: 14px; padding: 6px 0 14px; }
+.profile-avatar { width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 21px; font-weight: 600; flex-shrink: 0; }
+.profile-avatar.av-1 { background: #1a1a1a; color: white; }
+.profile-avatar.av-2 { background: #DC2626; color: white; }
+.profile-avatar.av-3 { background: #6D28D9; color: white; }
+.profile-avatar.av-4 { background: #1E3A8A; color: white; }
+.profile-avatar.av-5 { background: #7C2D12; color: white; }
+.profile-name { font-size: 17px; font-weight: 600; margin: 0; }
+.profile-belt-row { display: flex; gap: 6px; align-items: center; margin-top: 4px; flex-wrap: wrap; }
+
+.belt-pill { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 10.5px; font-weight: 700; letter-spacing: 0.2px; }
+.belt-blue { background: #1E3A8A; color: white; }
+.belt-purple { background: #6D28D9; color: white; }
+.belt-brown { background: #7C2D12; color: white; }
+.belt-black { background: #1a1a1a; color: white; }
+.belt-coach { background: #DC2626; color: white; }
+.profile-bio { font-size: 13px; line-height: 1.5; margin: 4px 0 12px; color: #374151; }
+
+.kv-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 0.5px solid #E5E5E5; font-size: 13px; cursor: pointer; }
+.kv-label { color: #1a1a1a; font-weight: 500; }
+.kv-value { color: #4B5563; font-size: 12.5px; display: flex; align-items: center; gap: 4px; }
+.kv-arrow { color: #9CA3AF; font-size: 14px; }
+
+.stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+.stat-card { background: #1a1a1a; color: white; border-radius: 10px; padding: 11px 13px; }
+.stat-num { font-size: 20px; font-weight: 700; margin: 0; }
+.stat-label { font-size: 10.5px; color: #D1D5DB; margin: 1px 0 0; text-transform: uppercase; letter-spacing: 0.4px; }
+
+.action-row { display: flex; gap: 8px; margin-top: 14px; }
+.action-row > * { flex: 1; }
+
+.club-banner { background: linear-gradient(135deg, #1a1a1a 0%, #1a1a1a 60%, #DC2626 100%); color: white; padding: 14px 16px; border-radius: 10px; margin-bottom: 12px; }
+.club-banner-name { font-size: 14px; font-weight: 700; margin: 0; }
+.club-banner-loc { font-size: 11px; color: #D1D5DB; margin: 2px 0 0; }
+
+.dm-row.unread .participant-name { font-weight: 700; }
+.dm-row.unread .participant-meta.preview { color: #1a1a1a; font-weight: 500; }
+.unread-dot { width: 9px; height: 9px; background: #DC2626; border-radius: 50%; flex-shrink: 0; }
+
+.legend-line { display: flex; align-items: center; gap: 6px; font-size: 10px; color: #6B7280; padding: 0 14px 8px; flex-shrink: 0; background: #FFFFFF; }
+.legend-line .legend-dot { width: 5px; height: 5px; border-radius: 50%; background: #DC2626; }
+
+.hint { text-align: center; color: #FFFFFF; font-size: 12px; margin-top: 14px; line-height: 1.5; opacity: 0.7; }
+
+/* === Écrans d'auth (login / register / mot de passe oublié) === */
+.auth-screen { flex: 1; display: flex; flex-direction: column; padding: 30px 22px 24px; background: #FFFFFF; overflow-y: auto; scrollbar-width: none; }
+.auth-screen::-webkit-scrollbar { display: none; }
+.auth-logo { display: flex; justify-content: center; margin-bottom: 12px; }
+.brand-logo-large { width: 64px; height: 64px; border-radius: 8px; }
+.auth-title { font-size: 22px; font-weight: 700; text-align: center; margin: 0 0 4px; color: #1a1a1a; }
+.auth-subtitle { font-size: 12px; color: #6B7280; text-align: center; margin: 0 0 28px; }
+.auth-form { display: flex; flex-direction: column; gap: 0; }
+.auth-link { text-align: center; margin: 14px 0 0; font-size: 13px; }
+.auth-link a, .auth-secondary a { color: #DC2626; font-weight: 600; cursor: pointer; text-decoration: none; }
+.auth-secondary { text-align: center; margin: 18px 0 0; font-size: 13px; color: #4B5563; }
+.auth-back { background: transparent; border: 0; cursor: pointer; padding: 0; font-size: 22px; color: #1a1a1a; align-self: flex-start; margin-bottom: 8px; }
+.auth-info { background: #F9FAFB; border-radius: 8px; padding: 10px 12px; font-size: 12px; color: #4B5563; line-height: 1.5; margin-bottom: 16px; border: 0.5px solid #E5E5E5; }
+
+/* === Toggle switch (réglages) === */
+.switch { position: relative; width: 38px; height: 22px; flex-shrink: 0; }
+.switch input { opacity: 0; width: 0; height: 0; }
+.switch .slider { position: absolute; cursor: pointer; inset: 0; background: #E5E7EB; border-radius: 999px; transition: 0.2s; }
+.switch .slider::before { content: ''; position: absolute; height: 18px; width: 18px; left: 2px; top: 2px; background: white; border-radius: 50%; transition: 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.15); }
+.switch input:checked + .slider { background: #DC2626; }
+.switch input:checked + .slider::before { transform: translateX(16px); }
+
+.notif-row { display: flex; justify-content: space-between; align-items: center; padding: 11px 0; border-bottom: 0.5px solid #E5E5E5; }
+.notif-info { flex: 1; min-width: 0; }
+.notif-name { font-size: 13.5px; font-weight: 600; margin: 0; color: #1a1a1a; }
+.notif-time { font-size: 11.5px; color: #6B7280; margin: 2px 0 0; }
+
+/* === Édition profil === */
+.avatar-edit { display: flex; align-items: center; gap: 14px; margin-bottom: 18px; padding-bottom: 16px; border-bottom: 0.5px solid #E5E5E5; }
+.avatar-edit-link { color: #DC2626; font-size: 13px; font-weight: 600; cursor: pointer; }
+.form-textarea { width: 100%; padding: 9px 11px; border-radius: 8px; border: 0.5px solid #E5E5E5; background: #FFFFFF; font-size: 13px; box-sizing: border-box; font-family: inherit; color: #1a1a1a; min-height: 70px; resize: none; }
+.form-help { font-size: 11px; color: #6B7280; margin: 4px 0 0; line-height: 1.4; }
+.option-pill.multi.selected { background: #DC2626; border-color: #DC2626; color: white; }
+.stripes-row { display: flex; gap: 6px; }
+.stripe-pill { width: 36px; height: 36px; border-radius: 50%; border: 1px solid #E5E5E5; background: #FFFFFF; font-weight: 700; font-size: 13px; cursor: pointer; }
+.stripe-pill.selected { background: #1a1a1a; color: white; border-color: #1a1a1a; }
+
+/* === Footer fixe (bouton enregistrer en bas d'un écran scrollable) === */
+.footer-bar { padding: 10px 14px; border-top: 0.5px solid #E5E5E5; background: #FFFFFF; flex-shrink: 0; }
+
+/* === Espace coach / admin === */
+.admin-banner { background: linear-gradient(135deg, #DC2626 0%, #1a1a1a 100%); color: white; padding: 12px 16px; border-radius: 10px; margin-bottom: 12px; display: flex; align-items: center; gap: 10px; }
+.admin-banner svg { width: 18px; height: 18px; flex-shrink: 0; }
+.admin-banner-text { font-size: 12px; line-height: 1.4; }
+.admin-banner-text strong { display: block; font-size: 13px; font-weight: 700; }
+
+.admin-course-card { background: #FFFFFF; border: 0.5px solid #E5E5E5; border-radius: 10px; padding: 11px 12px; margin-bottom: 10px; }
+.admin-course-card .course-time { color: #4B5563; }
+.admin-course-actions { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; margin-top: 9px; padding-top: 9px; border-top: 0.5px solid #F3F4F6; }
+.admin-action { padding: 7px 4px; border-radius: 7px; font-size: 11px; font-weight: 600; cursor: pointer; font-family: inherit; text-align: center; border: 0.5px solid #E5E5E5; background: #FFFFFF; color: #1a1a1a; }
+.admin-action.warn { background: #FEF3C7; border-color: #F59E0B; color: #92400E; }
+.admin-action.danger { background: #FEE2E2; border-color: #DC2626; color: #991B1B; }
+
+.coach-link-row { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: linear-gradient(135deg, #DC2626 0%, #1a1a1a 100%); color: white; border-radius: 10px; margin-bottom: 14px; cursor: pointer; }
+.coach-link-row svg { width: 20px; height: 20px; flex-shrink: 0; }
+.coach-link-row .coach-link-text { flex: 1; font-size: 13px; font-weight: 600; }
+.coach-link-row .kv-arrow { color: white; font-size: 16px; }
+
+/* === Bandeau d'alerte coach (broadcast) sur le planning === */
+.broadcast-banner { background: #DC2626; color: white; padding: 10px 14px; display: none; gap: 10px; align-items: flex-start; flex-shrink: 0; border-bottom: 0.5px solid #B91C1C; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+.broadcast-banner.show { display: flex; }
+.broadcast-icon { flex-shrink: 0; width: 18px; height: 18px; margin-top: 1px; }
+.broadcast-content { flex: 1; min-width: 0; line-height: 1.4; }
+.broadcast-author { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; opacity: 0.9; margin: 0; }
+.broadcast-text { font-size: 12.5px; margin: 2px 0 0; word-break: break-word; }
+.broadcast-close { background: transparent; border: 0; color: white; font-size: 18px; cursor: pointer; padding: 0; width: 22px; height: 22px; line-height: 1; flex-shrink: 0; opacity: 0.85; font-family: inherit; }
+
+/* Bouton "envoyer une alerte" plus visible que les autres actions admin */
+.admin-broadcast-cta { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-radius: 10px; background: #DC2626; color: white; border: 0; cursor: pointer; width: 100%; margin-bottom: 14px; font-family: inherit; font-size: 13.5px; font-weight: 600; }
+.admin-broadcast-cta svg { width: 20px; height: 20px; flex-shrink: 0; }
+.admin-broadcast-cta .cta-arrow { margin-left: auto; opacity: 0.9; }
+
+/* === Sélection radio (visibilité du poids) === */
+.choice-row { display: flex; align-items: center; padding: 14px 0; border-bottom: 0.5px solid #E5E5E5; cursor: pointer; gap: 12px; }
+.choice-row:last-child { border-bottom: 0; }
+.choice-radio { width: 22px; height: 22px; border: 1.5px solid #D1D5DB; border-radius: 50%; flex-shrink: 0; position: relative; transition: 0.15s; }
+.choice-row.selected .choice-radio { border-color: #DC2626; }
+.choice-row.selected .choice-radio::after { content: ''; position: absolute; inset: 4px; background: #DC2626; border-radius: 50%; }
+.choice-info { flex: 1; min-width: 0; }
+.choice-name { font-size: 14px; font-weight: 600; margin: 0; color: #1a1a1a; }
+.choice-desc { font-size: 12px; color: #6B7280; margin: 2px 0 0; line-height: 1.4; }
+
+/* === Date picker (admin-planning) === */
+.date-picker-bar { display: flex; align-items: center; gap: 8px; padding: 10px 14px; background: #F9FAFB; border-bottom: 0.5px solid #E5E5E5; flex-shrink: 0; }
+.date-picker-arrow { background: #FFFFFF; border: 0.5px solid #E5E5E5; border-radius: 6px; width: 30px; height: 30px; cursor: pointer; font-size: 16px; padding: 0; flex-shrink: 0; color: #1a1a1a; font-family: inherit; font-weight: 600; }
+.date-picker-current { font-size: 13.5px; font-weight: 700; color: #1a1a1a; flex: 1; text-align: center; }
+.date-picker-input { padding: 6px 10px; border: 0.5px solid #E5E5E5; border-radius: 6px; font-size: 12px; font-family: inherit; flex-shrink: 0; background: #FFFFFF; color: #1a1a1a; }
+
+/* === Messages photo + vocal === */
+.chat-msg.photo { padding: 3px; max-width: 65%; overflow: hidden; }
+.chat-photo { width: 200px; height: 140px; background: linear-gradient(135deg, #4B5563 0%, #1a1a1a 100%); border-radius: 14px; display: flex; align-items: center; justify-content: center; color: rgba(255,255,255,0.7); font-size: 11px; }
+.chat-msg.voice { display: flex; align-items: center; gap: 8px; padding: 8px 12px; min-width: 140px; }
+.chat-voice-play { width: 22px; height: 22px; flex-shrink: 0; }
+.chat-voice-wave { display: flex; gap: 2px; align-items: center; height: 18px; flex: 1; }
+.chat-voice-wave .bar { width: 2.5px; background: currentColor; border-radius: 1px; opacity: 0.85; }
+.chat-voice-time { font-size: 11px; flex-shrink: 0; opacity: 0.85; }
+
+.recording-pill { display: inline-flex; align-items: center; gap: 8px; padding: 7px 14px; border-radius: 999px; background: #FEE2E2; color: #DC2626; font-size: 12px; font-weight: 600; }
+.recording-dot { width: 8px; height: 8px; border-radius: 50%; background: #DC2626; animation: blink 1s infinite; }
+@keyframes blink { 50% { opacity: 0.3; } }
+
+/* === Discussion sous slot-detail === */
+.discussion-section { margin-top: 20px; padding-top: 16px; border-top: 0.5px solid #E5E5E5; }
+.discussion-list { display: flex; flex-direction: column; gap: 4px; margin-top: 10px; }
+.discussion-msg-row { display: flex; gap: 8px; align-items: flex-end; max-width: 100%; }
+.discussion-msg-row.mine { justify-content: flex-end; }
+.discussion-msg-row.them .avatar { width: 24px; height: 24px; font-size: 9px; flex-shrink: 0; margin: 0; }
+.discussion-author { font-size: 10.5px; color: #6B7280; margin: 4px 0 1px 32px; }
+</style>
+
+<div class="proto-bg">
+<div class="phone">
+<div class="screen-area">
+
+<div class="statusbar"><span>9:41</span><span>Boa Club</span><span class="icons"><span class="dot"></span><span class="dot"></span><span class="dot"></span></span></div>
+
+<div class="screen" data-screen="login">
+<div class="auth-screen">
+<div class="auth-logo"><div class="brand-logo brand-logo-large"></div></div>
+<h1 class="auth-title">Boa Club</h1>
+<p class="auth-subtitle">Sorgues · Vedène</p>
+<div class="auth-form">
+<div class="form-field"><label class="form-label">Email</label><input class="form-input" type="email" placeholder="ton@email.fr" /></div>
+<div class="form-field"><label class="form-label">Mot de passe</label><input class="form-input" type="password" placeholder="••••••••" /></div>
+<button class="btn-primary full" data-goto="planning">Se connecter</button>
+<p class="auth-link"><a data-goto="forgot">Mot de passe oublié ?</a></p>
+<p class="auth-secondary">Pas encore inscrit ? <a data-goto="register">Créer un compte</a></p>
+</div>
+</div>
+</div>
+
+<div class="screen" data-screen="register">
+<div class="auth-screen">
+<button class="auth-back" data-back>‹</button>
+<div class="auth-logo"><div class="brand-logo brand-logo-large"></div></div>
+<h1 class="auth-title">Créer un compte</h1>
+<p class="auth-subtitle">Rejoins le Boa Club</p>
+<div class="auth-form">
+<div class="form-field"><label class="form-label">Email</label><input class="form-input" type="email" placeholder="ton@email.fr" /></div>
+<div class="form-field"><label class="form-label">Mot de passe</label><input class="form-input" type="password" placeholder="8 caractères minimum" /></div>
+<div class="form-row">
+<div class="form-field"><label class="form-label">Prénom</label><input class="form-input" type="text" placeholder="Jean" /></div>
+<div class="form-field"><label class="form-label">Initiale</label><input class="form-input" type="text" placeholder="D." maxlength="3" /></div>
+</div>
+<div class="form-field">
+<label class="form-label">Ta ceinture</label>
+<div class="option-row" data-group="belt">
+<span class="option-pill selected">Blanche</span>
+<span class="option-pill">Bleue</span>
+<span class="option-pill">Violette</span>
+<span class="option-pill">Marron</span>
+<span class="option-pill">Noire</span>
+</div>
+<p class="form-help">Tu pourras la modifier plus tard depuis ton profil.</p>
+</div>
+<button class="btn-primary full" data-goto="planning">Créer mon compte</button>
+<p class="auth-secondary">Déjà inscrit ? <a data-goto="login">Se connecter</a></p>
+</div>
+</div>
+</div>
+
+<div class="screen" data-screen="forgot">
+<div class="auth-screen">
+<button class="auth-back" data-back>‹</button>
+<div class="auth-logo"><div class="brand-logo brand-logo-large"></div></div>
+<h1 class="auth-title">Mot de passe oublié</h1>
+<p class="auth-subtitle">On t'envoie un lien par email</p>
+<div class="auth-form">
+<div class="auth-info">Saisis l'email avec lequel tu t'es inscrit. Tu recevras un lien pour choisir un nouveau mot de passe.</div>
+<div class="form-field"><label class="form-label">Email</label><input class="form-input" type="email" placeholder="ton@email.fr" /></div>
+<button class="btn-primary full" data-goto="login">Recevoir le lien</button>
+<p class="auth-secondary"><a data-goto="login">‹ Retour à la connexion</a></p>
+</div>
+</div>
+</div>
+
+<div class="screen" data-screen="planning">
+<div class="app-header"><div class="app-header-left"><div class="brand-logo"></div><div><p class="app-title" style="font-size: 13px; letter-spacing: 0;">CLUBE DESPORTIVO BOA</p><p class="app-subtitle">Sorgues · Vedène</p></div></div></div>
+<div class="broadcast-banner" id="broadcast-banner">
+<svg class="broadcast-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l18-8v18l-18-8v-2z"/><path d="M11.5 14l1 4"/></svg>
+<div class="broadcast-content">
+<p class="broadcast-author" id="broadcast-author">De Victor</p>
+<p class="broadcast-text" id="broadcast-text">…</p>
+</div>
+<button class="broadcast-close" id="broadcast-close" aria-label="Fermer">×</button>
+</div>
+<div class="day-tabs" id="day-tabs">
+<button class="day-tab" data-day="0"><span class="dt-label">Lun</span><span class="dt-num">5</span><span class="dot-mark"></span></button>
+<button class="day-tab has-alert" data-day="1"><span class="dt-label">Mar</span><span class="dt-num">6</span><span class="dot-mark"></span></button>
+<button class="day-tab has-alert" data-day="2"><span class="dt-label">Mer</span><span class="dt-num">7</span><span class="dot-mark"></span></button>
+<button class="day-tab" data-day="3"><span class="dt-label">Jeu</span><span class="dt-num">8</span><span class="dot-mark"></span></button>
+<button class="day-tab" data-day="4"><span class="dt-label">Ven</span><span class="dt-num">9</span><span class="dot-mark"></span></button>
+<button class="day-tab" data-day="5"><span class="dt-label">Sam</span><span class="dt-num">10</span><span class="dot-mark"></span></button>
+<button class="day-tab" data-day="6"><span class="dt-label">Dim</span><span class="dt-num">11</span><span class="dot-mark"></span></button>
+</div>
+<div class="legend-line"><span class="legend-dot"></span><span>Le point rouge indique une info coach (retard, absence)</span></div>
+
+<div class="day-panels" id="day-panels">
+
+<div class="day-panel" data-day="0">
+<div class="followed-banner">Tes cours suivis ce jour. <span class="link">Voir tout ›</span></div>
+<div class="card"><div class="row-end"><div><p class="course-time">18:30 — 19:30</p><p class="course-name">Grappling No-Gi débutant</p><p class="course-coach" data-user="vincent">avec Vincent ›</p><p class="course-location">Dojo de Sorgues</p><div class="slot-meta"><span class="badge b-nogi">No-Gi</span></div></div><svg class="bell-icon on" data-course="grappling-debutant" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a6 6 0 0 0-6 6v3.5l-1.5 3a1 1 0 0 0 .9 1.5h13.2a1 1 0 0 0 .9-1.5L18 11.5V8a6 6 0 0 0-6-6zm0 19a3 3 0 0 0 3-3H9a3 3 0 0 0 3 3z"/></svg></div></div>
+<div class="card"><div class="row-end"><div><p class="course-time">19:30 — 20:30</p><p class="course-name">Grappling No-Gi Confirmé</p><p class="course-coach" data-user="nassim">avec Nassim ›</p><p class="course-location">Dojo de Sorgues</p><div class="slot-meta"><span class="badge b-nogi">No-Gi</span></div></div><svg class="bell-icon on" data-course="grappling-confirme" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a6 6 0 0 0-6 6v3.5l-1.5 3a1 1 0 0 0 .9 1.5h13.2a1 1 0 0 0 .9-1.5L18 11.5V8a6 6 0 0 0-6-6zm0 19a3 3 0 0 0 3-3H9a3 3 0 0 0 3 3z"/></svg></div></div>
+<div class="card"><div class="row-end"><div><p class="course-time">20:30 — 21:30</p><p class="course-name">MMA cours à thèmes</p><p class="course-coach" data-user="victor">avec Victor ›</p><p class="course-location">Dojo de Vedène</p><div class="slot-meta"><span class="badge b-mma">MMA</span></div></div><svg class="bell-icon on" data-course="mma" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a6 6 0 0 0-6 6v3.5l-1.5 3a1 1 0 0 0 .9 1.5h13.2a1 1 0 0 0 .9-1.5L18 11.5V8a6 6 0 0 0-6-6zm0 19a3 3 0 0 0 3-3H9a3 3 0 0 0 3 3z"/></svg></div></div>
+</div>
+
+<div class="day-panel" data-day="1">
+<div class="card"><div class="row-end"><div><p class="course-time">18:30 — 19:30</p><p class="course-name">JJB (Gi)</p><p class="course-coach" data-user="victor">avec Victor ›</p><p class="course-location">Dojo de Sorgues</p><div class="slot-meta"><span class="badge b-gi">Gi</span></div><div class="alert alert-late"><strong>Coach en retard de 15 min</strong> — démarrez l'échauffement entre vous</div></div><svg class="bell-icon on" data-course="jjb-gi" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a6 6 0 0 0-6 6v3.5l-1.5 3a1 1 0 0 0 .9 1.5h13.2a1 1 0 0 0 .9-1.5L18 11.5V8a6 6 0 0 0-6-6zm0 19a3 3 0 0 0 3-3H9a3 3 0 0 0 3 3z"/></svg></div></div>
+<div class="card"><div class="row-end"><div><p class="course-time">19:30 — 20:30</p><p class="course-name">Open Mat</p><p class="course-coach" data-user="samuel">avec Samuel ›</p><p class="course-location">Dojo de Sorgues</p><div class="slot-meta"><span class="badge b-open">Open Mat</span></div></div><svg class="bell-icon on" data-course="open-mat" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a6 6 0 0 0-6 6v3.5l-1.5 3a1 1 0 0 0 .9 1.5h13.2a1 1 0 0 0 .9-1.5L18 11.5V8a6 6 0 0 0-6-6zm0 19a3 3 0 0 0 3-3H9a3 3 0 0 0 3 3z"/></svg></div></div>
+<div class="card"><div class="row-end"><div><p class="course-time">20:30 — 21:30</p><p class="course-name">MMA cours à thèmes</p><p class="course-coach" data-user="victor">avec Victor ›</p><p class="course-location">Dojo de Vedène</p><div class="slot-meta"><span class="badge b-mma">MMA</span></div></div><svg class="bell-icon on" data-course="mma" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a6 6 0 0 0-6 6v3.5l-1.5 3a1 1 0 0 0 .9 1.5h13.2a1 1 0 0 0 .9-1.5L18 11.5V8a6 6 0 0 0-6-6zm0 19a3 3 0 0 0 3-3H9a3 3 0 0 0 3 3z"/></svg></div></div>
+</div>
+
+<div class="day-panel" data-day="2">
+<div class="card"><div class="row-end"><div><p class="course-time">18:30 — 19:30</p><p class="course-name">Grappling No-Gi débutant</p><p class="course-coach" data-user="vincent">avec Vincent ›</p><p class="course-location">Dojo de Sorgues</p><div class="slot-meta"><span class="badge b-nogi">No-Gi</span></div></div><svg class="bell-icon on" data-course="grappling-debutant" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a6 6 0 0 0-6 6v3.5l-1.5 3a1 1 0 0 0 .9 1.5h13.2a1 1 0 0 0 .9-1.5L18 11.5V8a6 6 0 0 0-6-6zm0 19a3 3 0 0 0 3-3H9a3 3 0 0 0 3 3z"/></svg></div></div>
+<div class="card"><div class="row-end"><div><p class="course-time">19:30 — 20:30</p><p class="course-name">Grappling No-Gi Confirmé</p><p class="course-coach" data-user="nassim">avec Nassim ›</p><p class="course-location">Dojo de Sorgues</p><div class="slot-meta"><span class="badge b-nogi">No-Gi</span></div></div><svg class="bell-icon on" data-course="grappling-confirme" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a6 6 0 0 0-6 6v3.5l-1.5 3a1 1 0 0 0 .9 1.5h13.2a1 1 0 0 0 .9-1.5L18 11.5V8a6 6 0 0 0-6-6zm0 19a3 3 0 0 0 3-3H9a3 3 0 0 0 3 3z"/></svg></div></div>
+<div class="card"><div class="row-end"><div><p class="course-time">20:30 — 21:30</p><p class="course-name">MMA cours à thèmes</p><p class="course-coach" data-user="victor">avec Victor ›</p><p class="course-location">Dojo de Vedène</p><div class="slot-meta"><span class="badge b-mma">MMA</span></div><div class="alert alert-absent"><strong>Coach absent</strong> — cours libre maintenu</div></div><svg class="bell-icon on" data-course="mma" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a6 6 0 0 0-6 6v3.5l-1.5 3a1 1 0 0 0 .9 1.5h13.2a1 1 0 0 0 .9-1.5L18 11.5V8a6 6 0 0 0-6-6zm0 19a3 3 0 0 0 3-3H9a3 3 0 0 0 3 3z"/></svg></div></div>
+</div>
+
+<div class="day-panel" data-day="3">
+<div class="card"><div class="row-end"><div><p class="course-time">18:30 — 19:30</p><p class="course-name">JJB (Gi)</p><p class="course-coach" data-user="victor">avec Victor ›</p><p class="course-location">Dojo de Sorgues</p><div class="slot-meta"><span class="badge b-gi">Gi</span></div></div><svg class="bell-icon on" data-course="jjb-gi" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a6 6 0 0 0-6 6v3.5l-1.5 3a1 1 0 0 0 .9 1.5h13.2a1 1 0 0 0 .9-1.5L18 11.5V8a6 6 0 0 0-6-6zm0 19a3 3 0 0 0 3-3H9a3 3 0 0 0 3 3z"/></svg></div></div>
+<div class="card"><div class="row-end"><div><p class="course-time">19:30 — 20:30</p><p class="course-name">Open Mat</p><p class="course-coach" data-user="samuel">avec Samuel ›</p><p class="course-location">Dojo de Sorgues</p><div class="slot-meta"><span class="badge b-open">Open Mat</span></div></div><svg class="bell-icon on" data-course="open-mat" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a6 6 0 0 0-6 6v3.5l-1.5 3a1 1 0 0 0 .9 1.5h13.2a1 1 0 0 0 .9-1.5L18 11.5V8a6 6 0 0 0-6-6zm0 19a3 3 0 0 0 3-3H9a3 3 0 0 0 3 3z"/></svg></div></div>
+</div>
+
+<div class="day-panel" data-day="4">
+<div class="card"><div class="row-end"><div><p class="course-time">18:30 — 19:30</p><p class="course-name">Grappling No-Gi débutant</p><p class="course-coach" data-user="vincent">avec Vincent ›</p><p class="course-location">Dojo de Sorgues</p><div class="slot-meta"><span class="badge b-nogi">No-Gi</span></div></div><svg class="bell-icon on" data-course="grappling-debutant" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a6 6 0 0 0-6 6v3.5l-1.5 3a1 1 0 0 0 .9 1.5h13.2a1 1 0 0 0 .9-1.5L18 11.5V8a6 6 0 0 0-6-6zm0 19a3 3 0 0 0 3-3H9a3 3 0 0 0 3 3z"/></svg></div></div>
+<div class="card"><div class="row-end"><div><p class="course-time">19:30 — 20:30</p><p class="course-name">Grappling No-Gi Confirmé</p><p class="course-coach" data-user="nassim">avec Nassim ›</p><p class="course-location">Dojo de Sorgues</p><div class="slot-meta"><span class="badge b-nogi">No-Gi</span></div></div><svg class="bell-icon on" data-course="grappling-confirme" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a6 6 0 0 0-6 6v3.5l-1.5 3a1 1 0 0 0 .9 1.5h13.2a1 1 0 0 0 .9-1.5L18 11.5V8a6 6 0 0 0-6-6zm0 19a3 3 0 0 0 3-3H9a3 3 0 0 0 3 3z"/></svg></div></div>
+</div>
+
+<div class="day-panel" data-day="5"><div class="empty-day"><div class="empty-day-icon">○</div>Aucun cours ce jour.</div></div>
+
+<div class="day-panel" data-day="6"><div class="empty-day"><div class="empty-day-icon">○</div>Aucun cours ce jour.</div></div>
+</div>
+</div>
+
+<div class="screen" data-screen="slots">
+<div class="app-header">
+<div class="app-header-left"><div class="brand-logo"></div><div><p class="app-title">Créneaux libres</p><p class="app-subtitle">Demande des adhérents</p></div></div>
+<button class="header-action" data-goto="create-slot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Créneau</button>
+</div>
+<div class="screen-body">
+<p class="day-header">Demain — Mercredi 7 mai</p>
+<div class="slot-card" data-goto="slot-detail"><p class="course-time">18:00 — 19:30</p><p class="course-name">Sparring No-Gi</p><div class="slot-meta"><span class="badge b-nogi">No-Gi</span><span class="badge b-spar-l">Sparring léger</span></div><div class="slot-footer"><span class="slot-creator">par Yanis B.</span><div class="avatar-stack"><div class="avatar av-1">YB</div><div class="avatar av-2">VA</div><div class="avatar av-3">SR</div><span class="count-pill">4 personnes</span></div></div></div>
+<p class="day-header">Jeudi 8 mai</p>
+<div class="slot-card" data-goto="slot-detail"><p class="course-time">10:30 — 12:00</p><p class="course-name">Open mat avant le cours</p><div class="slot-meta"><span class="badge b-mix">Mixte</span><span class="badge b-drill">Drilling</span></div><div class="slot-footer"><span class="slot-creator">par Sami L.</span><div class="avatar-stack"><div class="avatar av-3">SL</div><span class="count-pill">2 personnes</span></div></div></div>
+<p class="day-header">Samedi 10 mai</p>
+<div class="slot-card" data-goto="slot-detail"><p class="course-time">14:00 — 16:00</p><p class="course-name">Sparring No-Gi long</p><div class="slot-meta"><span class="badge b-nogi">No-Gi</span><span class="badge b-spar-h">Sparring fort</span></div><div class="slot-footer"><span class="slot-creator">par Karim H.</span><div class="avatar-stack"><div class="avatar av-5">KH</div><span class="count-pill">3 personnes</span></div></div></div>
+</div>
+</div>
+
+<div class="screen" data-screen="slot-detail">
+<div class="app-header"><div class="app-header-left"><button class="btn-back" data-back>‹</button><div><p class="app-title">Sparring No-Gi</p><p class="app-subtitle">par Yanis B.</p></div></div></div>
+<div class="scope-banner"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="9" r="3"/><circle cx="17" cy="11" r="2.5"/><path d="M3 19c0-3 3-5 6-5s6 2 6 5"/></svg>Discussion publique · les 4 inscrits voient tout</div>
+<div class="screen-body">
+<div class="detail-block"><p class="detail-label">Quand</p><p class="detail-value big">Mercredi 7 mai · 18:00 — 19:30</p></div>
+<button class="btn-outline full" id="btn-join">Je n'y vais plus</button>
+<p class="section-title">4 personnes y vont</p>
+<div class="participants-row" data-user="yanis-b"><div class="avatar av-1" style="margin: 0;">YB</div><div class="participant-name">Yanis B. <span class="you-tag">(toi)</span></div><span class="belt-pill belt-blue">Bleue</span></div>
+<div class="participants-row" data-user="victor"><div class="avatar av-2" style="margin: 0;">VA</div><div class="participant-name">Victor Almeida</div><span class="belt-pill belt-black">Noire</span></div>
+<div class="participants-row" data-user="sarah-r"><div class="avatar av-3" style="margin: 0;">SR</div><div class="participant-name">Sarah R.</div><span class="belt-pill belt-purple">Violette</span></div>
+<div class="participants-row" data-user="theo-l"><div class="avatar av-4" style="margin: 0;">TL</div><div class="participant-name">Théo L.</div><span class="belt-pill belt-blue">Bleue</span></div>
+
+<div class="discussion-section">
+<p class="section-title" style="margin-top: 0;">Discussion publique</p>
+<p class="form-help" style="margin: -2px 0 0;">Les 4 inscrits voient et écrivent dans ce fil.</p>
+<div class="discussion-list">
+<p class="discussion-author">Sarah R.</p>
+<div class="discussion-msg-row them">
+<div class="avatar av-3">SR</div>
+<div class="chat-msg them"><p class="chat-text">Quelqu'un peut prendre 2 protège-dents en plus ?</p></div>
+</div>
+<p class="discussion-author">Victor Almeida</p>
+<div class="discussion-msg-row them">
+<div class="avatar av-2">VA</div>
+<div class="chat-msg them"><p class="chat-text">J'en ai un d'avance, je l'amène 👍</p></div>
+</div>
+<div class="discussion-msg-row mine">
+<div class="chat-msg mine"><p class="chat-text">Top, merci. On s'échauffe à 17:55 ?</p></div>
+</div>
+<p class="discussion-author">Théo L.</p>
+<div class="discussion-msg-row them">
+<div class="avatar av-4">TL</div>
+<div class="chat-msg them"><p class="chat-text">Ça marche pour moi</p></div>
+</div>
+</div>
+</div>
+</div>
+<div class="msg-input-bar">
+<button class="msg-icon-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="6" width="18" height="14" rx="2"/><circle cx="12" cy="13" r="3.5"/></svg></button>
+<div class="msg-input-wrap"><input class="msg-input" type="text" placeholder="Écrire dans la discussion…" /></div>
+</div>
+</div>
+
+<div class="screen" data-screen="user-profile">
+<div class="app-header"><div class="app-header-left"><button class="btn-back" data-back>‹</button><div><p class="app-title" id="up-title">Profil</p><p class="app-subtitle" id="up-subtitle"></p></div></div></div>
+<div class="screen-body">
+<div class="profile-hero"><div class="profile-avatar" id="up-avatar">VA</div><div><p class="profile-name" id="up-name">Victor Almeida</p><div class="profile-belt-row" id="up-belt-row"><span class="belt-pill belt-coach" id="up-role">Coach</span><span class="belt-pill belt-black" id="up-belt">Noire</span><span class="participant-meta" id="up-weight">82 kg</span></div></div></div>
+<p class="profile-bio" id="up-bio">Fondateur du Clube Desportivo Boa.</p>
+<div class="action-row"><button class="btn-primary" id="up-msg-btn">Envoyer un message</button><button class="btn-outline" id="up-slots-btn">Ses créneaux</button></div>
+</div>
+</div>
+
+<div class="screen" data-screen="dm-thread">
+<div class="app-header"><div class="app-header-left"><button class="btn-back" data-back>‹</button><div class="avatar" id="dm-avatar" style="width: 32px; height: 32px; font-size: 11px; margin: 0;">VA</div><div><p class="app-title" id="dm-title">Victor Almeida</p><p class="app-subtitle">Conversation privée</p></div></div></div>
+<div class="dm-messages" id="dm-messages-wrap"><div class="chat-list dm" id="dm-messages"></div></div>
+<div class="msg-input-bar">
+<button class="msg-icon-btn" data-action="photo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="6" width="18" height="14" rx="2"/><circle cx="12" cy="13" r="3.5"/></svg></button>
+<button class="msg-icon-btn" data-action="mic" id="dm-mic-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/></svg></button>
+<div class="msg-input-wrap"><input class="msg-input" id="dm-input" type="text" placeholder="Aa" /></div>
+<button class="msg-send hidden" id="dm-send">→</button>
+</div>
+</div>
+
+<div class="screen" data-screen="create-slot">
+<div class="app-header"><div class="app-header-left"><button class="btn-back" data-back>‹</button><div><p class="app-title">Nouveau créneau</p></div></div></div>
+<div class="screen-body">
+<div class="form-field"><label class="form-label">Titre</label><input class="form-input" type="text" placeholder="Ex : Sparring No-Gi" /></div>
+<div class="form-field"><label class="form-label">Date</label><input class="form-input" type="text" value="Mercredi 7 mai" /></div>
+<div class="form-field"><label class="form-label">Horaire</label><div class="form-row"><input class="form-input" value="18:00" /><input class="form-input" value="19:30" /></div></div>
+<div class="form-field"><label class="form-label">Type</label><div class="option-row"><span class="option-pill">Gi</span><span class="option-pill selected">No-Gi</span><span class="option-pill">MMA</span><span class="option-pill">Mixte</span></div></div>
+<div class="form-field"><label class="form-label">Intensité</label><div class="option-row"><span class="option-pill">Drilling</span><span class="option-pill selected">Sparring léger</span><span class="option-pill">Sparring fort</span></div></div>
+<div class="form-field"><label class="form-label">Lieu</label><div class="option-row"><span class="option-pill selected">Sorgues</span><span class="option-pill">Vedène</span></div></div>
+<div class="form-field"><label class="form-label">Description (optionnel)</label><textarea class="form-textarea" placeholder="Ajoute des précisions : ce qu'on travaille, niveau attendu, équipement…"></textarea></div>
+<button class="btn-primary full">Publier</button>
+</div>
+</div>
+
+<div class="screen" data-screen="messages">
+<div class="app-header"><div class="app-header-left"><div class="brand-logo"></div><div><p class="app-title">Messages privés</p><p class="app-subtitle">2 non lus</p></div></div></div>
+<div class="screen-body">
+<div class="participants-row dm-row unread" data-dm="victor"><div class="avatar av-2" style="margin: 0; width: 40px; height: 40px; font-size: 13px;">VA</div><div style="flex: 1; min-width: 0;"><p class="participant-name" style="margin: 0;">Victor Almeida</p><p class="participant-meta preview">Tu peux venir 10 min en avance demain ?</p></div><div style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;"><span class="participant-meta">14:32</span><span class="unread-dot"></span></div></div>
+<div class="participants-row dm-row unread" data-dm="karim-h"><div class="avatar av-5" style="margin: 0; width: 40px; height: 40px; font-size: 13px;">KH</div><div style="flex: 1; min-width: 0;"><p class="participant-name" style="margin: 0;">Karim H.</p><p class="participant-meta preview">On bosse les passages de garde ?</p></div><div style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;"><span class="participant-meta">11:08</span><span class="unread-dot"></span></div></div>
+<div class="participants-row dm-row" data-dm="sarah-r"><div class="avatar av-3" style="margin: 0; width: 40px; height: 40px; font-size: 13px;">SR</div><div style="flex: 1; min-width: 0;"><p class="participant-name" style="margin: 0;">Sarah R.</p><p class="participant-meta">Cool, à demain alors</p></div><span class="participant-meta">hier</span></div>
+</div>
+</div>
+
+<div class="screen" data-screen="profile">
+<div class="app-header"><div class="app-header-left"><div><p class="app-title">Profil</p><p class="app-subtitle">Yanis B.</p></div></div></div>
+<div class="screen-body">
+<div class="club-banner"><p class="club-banner-name">Clube Desportivo Boa</p><p class="club-banner-loc">Sorgues · Vedène · Membre depuis mars 2024</p></div>
+<div class="profile-hero"><div class="profile-avatar av-1">YB</div><div><p class="profile-name">Yanis B.</p><div class="profile-belt-row"><span class="belt-pill belt-blue">Bleue · 1 stripe</span><span class="participant-meta">75 kg</span></div></div></div>
+<button class="btn-outline full" data-goto="edit-profile" style="margin-bottom: 14px;">Modifier mon profil</button>
+<div class="coach-link-row" data-goto="admin-dashboard" id="coach-link">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+<span class="coach-link-text">Espace coach &amp; admin</span>
+<span class="kv-arrow">›</span>
+</div>
+<div class="stat-grid"><div class="stat-card"><p class="stat-num">5</p><p class="stat-label">Cours suivis</p></div><div class="stat-card"><p class="stat-num">2</p><p class="stat-label">Créneaux à venir</p></div></div>
+<p class="section-title">Réglages</p>
+<div class="kv-row" data-goto="notifications-settings"><span class="kv-label">Notifications</span><span class="kv-value">5 cours suivis<span class="kv-arrow">›</span></span></div>
+<div class="kv-row" data-goto="weight-visibility"><span class="kv-label">Visibilité du poids</span><span class="kv-value" id="weight-visibility-summary">Adhérents seulement<span class="kv-arrow">›</span></span></div>
+<div class="kv-row" data-goto="login" style="color: #DC2626;"><span class="kv-label" style="color: #DC2626;">Se déconnecter</span><span class="kv-value"><span class="kv-arrow">›</span></span></div>
+</div>
+</div>
+
+<div class="screen" data-screen="edit-profile">
+<div class="app-header"><div class="app-header-left"><button class="btn-back" data-back>‹</button><div><p class="app-title">Modifier mon profil</p></div></div><button class="header-action" data-back>OK</button></div>
+<div class="screen-body">
+<div class="avatar-edit">
+<div class="profile-avatar av-1" style="width: 64px; height: 64px; font-size: 22px;">YB</div>
+<div><p style="margin: 0; font-weight: 600;">Photo de profil</p><span class="avatar-edit-link">Changer la photo</span></div>
+</div>
+<div class="form-row">
+<div class="form-field"><label class="form-label">Prénom</label><input class="form-input" type="text" value="Yanis" /></div>
+<div class="form-field"><label class="form-label">Initiale</label><input class="form-input" type="text" value="B." maxlength="3" /></div>
+</div>
+<div class="form-field">
+<label class="form-label">Bio</label>
+<textarea class="form-textarea" placeholder="Quelques mots sur toi…">Compétiteur amateur.</textarea>
+</div>
+<div class="form-field">
+<label class="form-label">Ceinture</label>
+<div class="option-row" data-group="edit-belt">
+<span class="option-pill">Blanche</span>
+<span class="option-pill selected">Bleue</span>
+<span class="option-pill">Violette</span>
+<span class="option-pill">Marron</span>
+<span class="option-pill">Noire</span>
+</div>
+</div>
+<div class="form-field">
+<label class="form-label">Stripes</label>
+<div class="stripes-row" data-group="stripes">
+<button class="stripe-pill">0</button>
+<button class="stripe-pill selected">1</button>
+<button class="stripe-pill">2</button>
+<button class="stripe-pill">3</button>
+<button class="stripe-pill">4</button>
+</div>
+</div>
+<div class="form-field">
+<label class="form-label">Poids (kg)</label>
+<input class="form-input" type="number" value="75" />
+</div>
+<div class="form-field">
+<label class="form-label">Visibilité du poids</label>
+<div class="option-row" data-group="weight-visibility">
+<span class="option-pill">Public</span>
+<span class="option-pill selected">Adhérents</span>
+<span class="option-pill">Privé</span>
+</div>
+</div>
+<div class="form-field">
+<label class="form-label">Disciplines pratiquées</label>
+<div class="option-row" data-group="disciplines" data-multi="true">
+<span class="option-pill multi selected">JJB Gi</span>
+<span class="option-pill multi selected">JJB No-Gi</span>
+<span class="option-pill multi">MMA</span>
+<span class="option-pill multi">Wrestling</span>
+</div>
+<p class="form-help">Plusieurs choix possibles.</p>
+</div>
+<button class="btn-primary full" data-back>Enregistrer</button>
+</div>
+</div>
+
+<div class="screen" data-screen="notifications-settings">
+<div class="app-header"><div class="app-header-left"><button class="btn-back" data-back>‹</button><div><p class="app-title">Notifications</p><p class="app-subtitle">Cours suivis</p></div></div></div>
+<div class="screen-body">
+<p class="form-help" style="margin: 0 0 14px;">Active les cours pour lesquels tu veux recevoir un rappel 1h avant + une alerte si le coach est en retard ou absent. Les cours décochés n'apparaîtront plus avec une cloche rouge dans le planning.</p>
+<div class="notif-row" data-course="jjb-gi">
+<div class="notif-info"><p class="notif-name">JJB (Gi)</p><p class="notif-time">Mar & Jeu · 18:30 — 19:30 · Sorgues</p></div>
+<label class="switch"><input type="checkbox" checked /><span class="slider"></span></label>
+</div>
+<div class="notif-row" data-course="grappling-debutant">
+<div class="notif-info"><p class="notif-name">Grappling No-Gi débutant</p><p class="notif-time">Lun, Mer, Ven · 18:30 — 19:30 · Sorgues</p></div>
+<label class="switch"><input type="checkbox" checked /><span class="slider"></span></label>
+</div>
+<div class="notif-row" data-course="grappling-confirme">
+<div class="notif-info"><p class="notif-name">Grappling No-Gi Confirmé</p><p class="notif-time">Lun, Mer, Ven · 19:30 — 20:30 · Sorgues</p></div>
+<label class="switch"><input type="checkbox" checked /><span class="slider"></span></label>
+</div>
+<div class="notif-row" data-course="mma">
+<div class="notif-info"><p class="notif-name">MMA cours à thèmes</p><p class="notif-time">Lun, Mar, Mer · 20:30 — 21:30 · Vedène</p></div>
+<label class="switch"><input type="checkbox" checked /><span class="slider"></span></label>
+</div>
+<div class="notif-row" data-course="open-mat">
+<div class="notif-info"><p class="notif-name">Open Mat</p><p class="notif-time">Mar & Jeu · 19:30 — 20:30 · Sorgues</p></div>
+<label class="switch"><input type="checkbox" checked /><span class="slider"></span></label>
+</div>
+<div class="notif-row">
+<div class="notif-info"><p class="notif-name">Créneau libre que je rejoins</p><p class="notif-time">Notifs message dans la discussion publique</p></div>
+<label class="switch"><input type="checkbox" checked /><span class="slider"></span></label>
+</div>
+</div>
+<div class="footer-bar">
+<button class="btn-primary full" id="notif-save-btn">Enregistrer mes choix</button>
+</div>
+</div>
+
+<div class="screen" data-screen="weight-visibility">
+<div class="app-header"><div class="app-header-left"><button class="btn-back" data-back>‹</button><div><p class="app-title">Visibilité du poids</p><p class="app-subtitle">Qui peut voir ton poids ?</p></div></div></div>
+<div class="screen-body">
+<p class="form-help" style="margin: 0 0 12px;">Choisis qui peut voir ton poids dans ton profil. Tu peux changer à tout moment.</p>
+<div class="choice-row" data-weight-choice="public">
+<div class="choice-radio"></div>
+<div class="choice-info">
+<p class="choice-name">Public</p>
+<p class="choice-desc">Tout le monde peut voir ton poids, y compris les visiteurs non inscrits.</p>
+</div>
+</div>
+<div class="choice-row selected" data-weight-choice="members">
+<div class="choice-radio"></div>
+<div class="choice-info">
+<p class="choice-name">Adhérents seulement</p>
+<p class="choice-desc">Seuls les autres adhérents du Boa Club voient ton poids.</p>
+</div>
+</div>
+<div class="choice-row" data-weight-choice="private">
+<div class="choice-radio"></div>
+<div class="choice-info">
+<p class="choice-name">Privé</p>
+<p class="choice-desc">Personne ne voit ton poids, même les autres adhérents.</p>
+</div>
+</div>
+</div>
+<div class="footer-bar">
+<button class="btn-primary full" id="weight-save-btn">Enregistrer</button>
+</div>
+</div>
+
+<div class="screen" data-screen="admin-dashboard">
+<div class="app-header"><div class="app-header-left"><button class="btn-back" data-back>‹</button><div><p class="app-title">Espace coach</p><p class="app-subtitle">Gestion du planning</p></div></div></div>
+<div class="screen-body">
+<div class="admin-banner">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l8 4v6c0 5-3.5 9-8 10-4.5-1-8-5-8-10V6l8-4z"/></svg>
+<div class="admin-banner-text"><strong>Mode admin</strong>Annonce un retard, une absence, ou modifie un cours. Les adhérents reçoivent une notif.</div>
+</div>
+<button class="admin-broadcast-cta" data-goto="admin-broadcast">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l18-8v18l-18-8v-2z"/><path d="M11.5 14l1 4"/></svg>
+<span>Envoyer une alerte aux adhérents</span>
+<span class="cta-arrow">›</span>
+</button>
+<p class="day-header">Aujourd'hui — Mardi 6 mai</p>
+<div class="admin-course-card">
+<p class="course-time">18:30 — 19:30</p>
+<p class="course-name">JJB (Gi)</p>
+<p class="course-location">Dojo de Sorgues</p>
+<div class="admin-course-actions">
+<button class="admin-action warn" data-admin-notify data-course-name="JJB (Gi)" data-course-time="Mardi 6 mai · 18:30">Retard</button>
+<button class="admin-action danger" data-admin-notify data-course-name="JJB (Gi)" data-course-time="Mardi 6 mai · 18:30" data-default-type="absent">Absence</button>
+<button class="admin-action" data-goto="admin-edit-course">Modifier</button>
+</div>
+</div>
+<div class="admin-course-card">
+<p class="course-time">19:30 — 20:30</p>
+<p class="course-name">Open Mat</p>
+<p class="course-location">Dojo de Sorgues</p>
+<div class="admin-course-actions">
+<button class="admin-action warn" data-admin-notify data-course-name="Open Mat" data-course-time="Mardi 6 mai · 19:30">Retard</button>
+<button class="admin-action danger" data-admin-notify data-course-name="Open Mat" data-course-time="Mardi 6 mai · 19:30" data-default-type="absent">Absence</button>
+<button class="admin-action" data-goto="admin-edit-course">Modifier</button>
+</div>
+</div>
+<div class="admin-course-card">
+<p class="course-time">20:30 — 21:30</p>
+<p class="course-name">MMA cours à thèmes</p>
+<p class="course-location">Dojo de Vedène</p>
+<div class="admin-course-actions">
+<button class="admin-action warn" data-admin-notify data-course-name="MMA cours à thèmes" data-course-time="Mardi 6 mai · 20:30">Retard</button>
+<button class="admin-action danger" data-admin-notify data-course-name="MMA cours à thèmes" data-course-time="Mardi 6 mai · 20:30" data-default-type="absent">Absence</button>
+<button class="admin-action" data-goto="admin-edit-course">Modifier</button>
+</div>
+</div>
+<p class="section-title">Cette semaine</p>
+<div class="kv-row" data-goto="admin-planning"><span class="kv-label">Voir le planning complet</span><span class="kv-value"><span class="kv-arrow">›</span></span></div>
+<div class="kv-row" data-goto="admin-edit-course"><span class="kv-label">Ajouter un cours ponctuel</span><span class="kv-value"><span class="kv-arrow">›</span></span></div>
+</div>
+</div>
+
+<div class="screen" data-screen="admin-notify">
+<div class="app-header"><div class="app-header-left"><button class="btn-back" data-back>‹</button><div><p class="app-title">Notifier les adhérents</p><p class="app-subtitle" id="admin-notify-course">JJB (Gi) · Mardi 6 mai · 18:30</p></div></div></div>
+<div class="screen-body">
+<div class="form-field">
+<label class="form-label">Type de notification</label>
+<div class="option-row" data-group="notify-type">
+<span class="option-pill selected" data-notify-type="late">Retard</span>
+<span class="option-pill" data-notify-type="absent">Absence</span>
+</div>
+</div>
+<div class="form-field" id="notify-late-field">
+<label class="form-label">Combien de minutes de retard ?</label>
+<div class="option-row">
+<span class="option-pill">5 min</span>
+<span class="option-pill selected">10 min</span>
+<span class="option-pill">15 min</span>
+<span class="option-pill">30 min</span>
+</div>
+</div>
+<div class="form-field" id="notify-absent-field" style="display: none;">
+<label class="form-label">Que se passe-t-il pour le cours ?</label>
+<div class="option-row">
+<span class="option-pill selected">Cours libre maintenu</span>
+<span class="option-pill">Cours annulé</span>
+</div>
+<p class="form-help">Si tu choisis « Cours libre maintenu », un créneau libre est généré automatiquement à la même heure.</p>
+</div>
+<div class="form-field">
+<label class="form-label">Message aux adhérents (optionnel)</label>
+<textarea class="form-textarea" placeholder="Ex : Démarrez l'échauffement entre vous, je suis sur la route."></textarea>
+</div>
+<button class="btn-primary full" data-back>Envoyer la notification</button>
+</div>
+</div>
+
+<div class="screen" data-screen="admin-edit-course">
+<div class="app-header"><div class="app-header-left"><button class="btn-back" data-back>‹</button><div><p class="app-title">Modifier le cours</p></div></div><button class="header-action" data-back>OK</button></div>
+<div class="screen-body">
+<div class="form-field"><label class="form-label">Nom du cours</label>
+<p class="detail-value big" style="margin: 4px 0 0; padding: 9px 11px; background: #F9FAFB; border-radius: 8px; border: 0.5px solid #E5E5E5;">JJB (Gi)</p>
+<p class="form-help">Le nom du cours n'est pas modifiable.</p>
+</div>
+<div class="form-field"><label class="form-label">Coach</label>
+<div class="option-row">
+<span class="option-pill selected">Victor</span>
+<span class="option-pill">Vincent</span>
+<span class="option-pill">Nassim</span>
+<span class="option-pill">Samuel</span>
+</div>
+<p class="form-help">Choisis le coach qui assurera ce cours. Tu peux aussi en sélectionner un autre temporairement pour une date donnée.</p>
+</div>
+<div class="form-field"><label class="form-label">Jours de la semaine</label>
+<div class="option-row" data-multi="true">
+<span class="option-pill multi">Lun</span>
+<span class="option-pill multi selected">Mar</span>
+<span class="option-pill multi">Mer</span>
+<span class="option-pill multi selected">Jeu</span>
+<span class="option-pill multi">Ven</span>
+<span class="option-pill multi">Sam</span>
+<span class="option-pill multi">Dim</span>
+</div>
+</div>
+<div class="form-field"><label class="form-label">Horaire</label><div class="form-row"><input class="form-input" value="18:30" /><input class="form-input" value="19:30" /></div></div>
+<div class="form-field"><label class="form-label">Type</label>
+<div class="option-row">
+<span class="option-pill selected">Gi</span>
+<span class="option-pill">No-Gi</span>
+<span class="option-pill">MMA</span>
+<span class="option-pill">Mixte</span>
+</div>
+</div>
+<div class="form-field"><label class="form-label">Lieu</label>
+<div class="option-row">
+<span class="option-pill selected">Dojo de Sorgues</span>
+<span class="option-pill">Dojo de Vedène</span>
+</div>
+</div>
+<div class="form-field"><label class="form-label">Description (optionnel)</label><textarea class="form-textarea" placeholder="Précisions sur le cours…"></textarea></div>
+<button class="btn-primary full" data-back>Enregistrer</button>
+<button class="btn-outline full" data-back style="margin-top: 8px; color: #DC2626; border-color: #DC2626;">Annuler ce cours pour de bon</button>
+</div>
+</div>
+
+<div class="screen" data-screen="admin-planning">
+<div class="app-header"><div class="app-header-left"><button class="btn-back" data-back>‹</button><div><p class="app-title">Planning complet</p><p class="app-subtitle">Choisis une date</p></div></div></div>
+<div class="date-picker-bar">
+<button class="date-picker-arrow" id="admin-date-prev">‹</button>
+<span class="date-picker-current" id="admin-date-current">Mardi 6 mai 2026</span>
+<input class="date-picker-input" type="date" id="admin-date-input" value="2026-05-06" />
+<button class="date-picker-arrow" id="admin-date-next">›</button>
+</div>
+<div class="screen-body">
+<div class="admin-course-card">
+<p class="course-time">18:30 — 19:30</p>
+<p class="course-name">JJB (Gi)</p>
+<p class="course-coach" data-user="victor">avec Victor ›</p>
+<p class="course-location">Dojo de Sorgues</p>
+<div class="admin-course-actions">
+<button class="admin-action warn" data-admin-notify data-course-name="JJB (Gi)" data-course-time="Mardi 6 mai · 18:30">Retard</button>
+<button class="admin-action danger" data-admin-notify data-course-name="JJB (Gi)" data-course-time="Mardi 6 mai · 18:30" data-default-type="absent">Absence</button>
+<button class="admin-action" data-goto="admin-edit-course">Modifier</button>
+</div>
+</div>
+<div class="admin-course-card">
+<p class="course-time">19:30 — 20:30</p>
+<p class="course-name">Open Mat</p>
+<p class="course-coach" data-user="samuel">avec Samuel ›</p>
+<p class="course-location">Dojo de Sorgues</p>
+<div class="admin-course-actions">
+<button class="admin-action warn" data-admin-notify data-course-name="Open Mat" data-course-time="Mardi 6 mai · 19:30">Retard</button>
+<button class="admin-action danger" data-admin-notify data-course-name="Open Mat" data-course-time="Mardi 6 mai · 19:30" data-default-type="absent">Absence</button>
+<button class="admin-action" data-goto="admin-edit-course">Modifier</button>
+</div>
+</div>
+<div class="admin-course-card">
+<p class="course-time">20:30 — 21:30</p>
+<p class="course-name">MMA cours à thèmes</p>
+<p class="course-coach" data-user="victor">avec Victor ›</p>
+<p class="course-location">Dojo de Vedène</p>
+<div class="admin-course-actions">
+<button class="admin-action warn" data-admin-notify data-course-name="MMA cours à thèmes" data-course-time="Mardi 6 mai · 20:30">Retard</button>
+<button class="admin-action danger" data-admin-notify data-course-name="MMA cours à thèmes" data-course-time="Mardi 6 mai · 20:30" data-default-type="absent">Absence</button>
+<button class="admin-action" data-goto="admin-edit-course">Modifier</button>
+</div>
+</div>
+<button class="btn-outline full" data-goto="admin-edit-course" style="margin-top: 8px;">+ Ajouter un cours ponctuel ce jour</button>
+</div>
+</div>
+
+<div class="screen" data-screen="admin-broadcast">
+<div class="app-header"><div class="app-header-left"><button class="btn-back" data-back>‹</button><div><p class="app-title">Envoyer une alerte</p><p class="app-subtitle">À tous les adhérents</p></div></div></div>
+<div class="screen-body">
+<div class="auth-info">L'alerte apparaîtra en haut du planning de tous les adhérents et leur enverra une notification push.</div>
+<div class="form-field">
+<label class="form-label">De la part de</label>
+<div class="option-row" data-group="broadcast-author">
+<span class="option-pill selected" data-broadcast-author="Victor">Victor</span>
+<span class="option-pill" data-broadcast-author="Vincent">Vincent</span>
+<span class="option-pill" data-broadcast-author="Nassim">Nassim</span>
+<span class="option-pill" data-broadcast-author="Samuel">Samuel</span>
+</div>
+</div>
+<div class="form-field">
+<label class="form-label">Message</label>
+<textarea class="form-textarea" id="broadcast-message" placeholder="Ex : Le tatami sera nettoyé exceptionnellement à 19h ce soir, retardez votre arrivée si possible." style="min-height: 120px;"></textarea>
+<p class="form-help">Sois concis et clair — les adhérents le voient en priorité dans l'app.</p>
+</div>
+<div class="form-field">
+<label class="form-label">Durée d'affichage</label>
+<div class="option-row" data-group="broadcast-duration">
+<span class="option-pill" data-duration-hours="1">1 h</span>
+<span class="option-pill" data-duration-hours="6">6 h</span>
+<span class="option-pill selected" data-duration-hours="24">24 h</span>
+<span class="option-pill" data-duration-hours="72">3 jours</span>
+<span class="option-pill" data-duration-hours="168">1 semaine</span>
+</div>
+<p class="form-help">L'alerte disparaît automatiquement après cette durée. Les adhérents peuvent aussi la fermer manuellement avant.</p>
+</div>
+</div>
+<div class="footer-bar">
+<button class="btn-primary full" id="broadcast-send-btn">Envoyer à tous les adhérents</button>
+</div>
+</div>
+
+<div class="tabbar">
+<button class="tab" data-target="planning"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="5" width="18" height="16" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="16" y1="3" x2="16" y2="7"/></svg>Planning</button>
+<button class="tab" data-target="slots"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="9" cy="9" r="3"/><circle cx="17" cy="11" r="2.5"/><path d="M3 19c0-3 3-5 6-5s6 2 6 5"/><path d="M14 19c0-2 2-3.5 4-3.5s3 1 3 3"/></svg>Créneaux</button>
+<button class="tab" data-target="messages"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 5h16v11H8l-4 4z"/></svg>Messages</button>
+<button class="tab" data-target="profile"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>Profil</button>
+</div>
+
+</div>
+</div>
+<p class="hint">Jour sélectionné : fond gris clair + bordure rouge</p>
+</div>
+
+<script>
+(function() {
+  const screens = document.querySelectorAll('.screen');
+  const tabs = document.querySelectorAll('.tab');
+  const tabbar = document.querySelector('.tabbar');
+  const navStack = ['login'];
+  const navTargets = ['planning', 'slots', 'messages', 'profile'];
+  const authScreens = ['login', 'register', 'forgot'];
+  // Pour les sous-écrans, on indique quel onglet du bas doit être surligné.
+  const subScreenParent = {
+    'slot-detail': 'slots',
+    'create-slot': 'slots',
+    'edit-profile': 'profile',
+    'notifications-settings': 'profile',
+    'weight-visibility': 'profile',
+    'admin-dashboard': 'profile',
+    'admin-notify': 'profile',
+    'admin-edit-course': 'profile',
+    'admin-planning': 'profile',
+    'admin-broadcast': 'profile'
+  };
+
+  const users = {
+    'yanis-b': { name: 'Yanis B.', initials: 'YB', av: 'av-1', role: '', beltColor: 'belt-blue', beltText: 'Bleue · 1 stripe', weight: '75 kg', bio: 'Compétiteur amateur.' },
+    'victor':  { name: 'Victor Almeida', initials: 'VA', av: 'av-2', role: 'Coach', beltColor: 'belt-black', beltText: 'Noire', weight: '82 kg', bio: 'Fondateur du Clube Desportivo Boa.' },
+    'vincent': { name: 'Vincent', initials: 'VI', av: 'av-1', role: 'Coach', beltColor: 'belt-black', beltText: 'Noire', weight: '78 kg', bio: 'Coach Grappling No-Gi débutant.' },
+    'nassim':  { name: 'Nassim', initials: 'NA', av: 'av-2', role: 'Coach', beltColor: 'belt-black', beltText: 'Noire', weight: '80 kg', bio: 'Coach Grappling No-Gi confirmé.' },
+    'samuel':  { name: 'Samuel', initials: 'SA', av: 'av-5', role: 'Coach', beltColor: 'belt-brown', beltText: 'Marron · 4 stripes', weight: '79 kg', bio: 'Encadre les Open Mats.' },
+    'sarah-r': { name: 'Sarah R.', initials: 'SR', av: 'av-3', role: '', beltColor: 'belt-purple', beltText: 'Violette · 2 stripes', weight: '64 kg', bio: 'Compétitrice IBJJF.' },
+    'theo-l':  { name: 'Théo L.', initials: 'TL', av: 'av-4', role: '', beltColor: 'belt-blue', beltText: 'Bleue', weight: '78 kg', bio: 'Débute en no-gi.' },
+    'karim-h': { name: 'Karim H.', initials: 'KH', av: 'av-5', role: '', beltColor: 'belt-brown', beltText: 'Marron', weight: '77 kg', bio: 'Compétiteur.' }
+  };
+  const dmMessages = {
+    'victor': [{ from: 'them', text: 'Salut Yanis, dispo demain matin pour bosser le passage de garde ?' }, { from: 'me', text: 'Hello Victor, oui carrément. 11h ça te va ?' }, { from: 'them', text: 'Tu peux venir 10 min en avance demain ?' }],
+    'sarah-r': [{ from: 'them', text: 'Cool, à demain alors' }],
+    'karim-h': [{ from: 'them', text: 'On bosse les passages de garde ?' }]
+  };
+
+  let activeProfileUser = 'victor';
+
+  function show(name, push) {
+    if (push === undefined) push = true;
+    screens.forEach(s => s.classList.toggle('active', s.dataset.screen === name));
+
+    // Cacher la tabbar sur les écrans d'auth (login/register/forgot).
+    if (tabbar) tabbar.style.display = authScreens.includes(name) ? 'none' : '';
+
+    if (push) {
+      // Sur les écrans racines (auth + onglets), on reset la pile.
+      if (navTargets.includes(name) || authScreens.includes(name)) {
+        navStack.length = 0;
+        navStack.push(name);
+      } else {
+        navStack.push(name);
+      }
+    }
+    let highlight = name;
+    if (!navTargets.includes(name)) {
+      if (subScreenParent[name]) highlight = subScreenParent[name];
+      else if (name === 'user-profile' || name === 'dm-thread') {
+        const root = navStack.find(s => navTargets.includes(s));
+        highlight = root || 'slots';
+      }
+    }
+    tabs.forEach(t => t.classList.toggle('active', t.dataset.target === highlight));
+  }
+
+  function goBack() { if (navStack.length > 1) { navStack.pop(); show(navStack[navStack.length - 1], false); } }
+
+  function openUserProfile(userId) {
+    const u = users[userId]; if (!u) return;
+    activeProfileUser = userId;
+    document.getElementById('up-title').textContent = u.name;
+    document.getElementById('up-subtitle').textContent = u.role || 'Adhérent';
+    document.getElementById('up-name').textContent = u.name;
+    const av = document.getElementById('up-avatar');
+    av.textContent = u.initials; av.className = 'profile-avatar ' + u.av;
+    const r = document.getElementById('up-role');
+    if (u.role) { r.textContent = u.role; r.style.display = ''; } else r.style.display = 'none';
+    const beltEl = document.getElementById('up-belt');
+    beltEl.textContent = u.beltText; beltEl.className = 'belt-pill ' + u.beltColor;
+    document.getElementById('up-weight').textContent = u.weight;
+    document.getElementById('up-bio').textContent = u.bio;
+    show('user-profile');
+  }
+
+  function openDm(userId) {
+    const u = users[userId]; if (!u) return;
+    document.getElementById('dm-title').textContent = u.name;
+    const av = document.getElementById('dm-avatar');
+    av.textContent = u.initials; av.className = 'avatar ' + u.av;
+    av.style.cssText = 'width: 32px; height: 32px; font-size: 11px; margin: 0;';
+    const list = document.getElementById('dm-messages');
+    const msgs = dmMessages[userId] || [];
+    list.innerHTML = msgs.map(m => '<div class="chat-msg ' + (m.from === 'me' ? 'mine' : 'them') + '"><p class="chat-text">' + m.text.replace(/</g, '&lt;') + '</p></div>').join('');
+    document.querySelectorAll('.dm-row').forEach(row => { if (row.dataset.dm === userId) row.classList.remove('unread'); });
+    const unread = document.querySelectorAll('.dm-row.unread').length;
+    const subtitle = document.querySelector('.screen[data-screen="messages"] .app-subtitle');
+    if (subtitle) subtitle.textContent = unread === 0 ? 'Toutes lues' : (unread + ' non lus');
+    show('dm-thread');
+  }
+
+  show('login', false);
+
+  tabs.forEach(t => t.addEventListener('click', () => show(t.dataset.target)));
+  document.querySelectorAll('[data-goto]').forEach(el => el.addEventListener('click', e => { e.stopPropagation(); show(el.dataset.goto); }));
+  document.querySelectorAll('[data-back]').forEach(el => el.addEventListener('click', e => { e.stopPropagation(); goBack(); }));
+  document.querySelectorAll('[data-user]').forEach(el => el.addEventListener('click', e => { e.stopPropagation(); openUserProfile(el.dataset.user); }));
+  document.querySelectorAll('[data-dm]').forEach(el => el.addEventListener('click', e => { e.stopPropagation(); openDm(el.dataset.dm); }));
+
+  document.getElementById('up-msg-btn').addEventListener('click', () => openDm(activeProfileUser));
+
+  const dmInput = document.getElementById('dm-input');
+  if (dmInput) {
+    dmInput.addEventListener('input', () => {
+      const sendBtn = document.getElementById('dm-send');
+      const micBtn = document.getElementById('dm-mic-btn');
+      const has = dmInput.value.trim().length > 0;
+      sendBtn.classList.toggle('hidden', !has);
+      micBtn.classList.toggle('hidden', has);
+    });
+  }
+
+  const dayPanels = document.getElementById('day-panels');
+  const dayTabs = document.querySelectorAll('.day-tab');
+  function setActiveDay(idx) { dayTabs.forEach(t => t.classList.toggle('active', parseInt(t.dataset.day) === idx)); }
+  dayTabs.forEach(t => t.addEventListener('click', () => {
+    const idx = parseInt(t.dataset.day);
+    dayPanels.scrollTo({ left: idx * dayPanels.clientWidth, behavior: 'smooth' });
+    setActiveDay(idx);
+  }));
+  let scrollTimer;
+  dayPanels.addEventListener('scroll', () => {
+    clearTimeout(scrollTimer);
+    scrollTimer = setTimeout(() => setActiveDay(Math.round(dayPanels.scrollLeft / dayPanels.clientWidth)), 80);
+  });
+  setActiveDay(1);
+  setTimeout(() => { dayPanels.scrollLeft = dayPanels.clientWidth * 1; }, 50);
+
+  const joinBtn = document.getElementById('btn-join');
+  if (joinBtn) {
+    let joined = true;
+    joinBtn.addEventListener('click', () => {
+      joined = !joined;
+      joinBtn.textContent = joined ? 'Je n\'y vais plus' : 'Je viens';
+      joinBtn.classList.toggle('btn-primary', !joined);
+      joinBtn.classList.toggle('btn-outline', joined);
+    });
+  }
+  document.querySelectorAll('.option-pill').forEach(p => p.addEventListener('click', () => {
+    const row = p.parentElement;
+    if (!row.classList.contains('option-row')) return;
+    // Multi-sélection si data-multi="true" (ex: disciplines pratiquées).
+    if (row.dataset.multi === 'true') {
+      p.classList.toggle('selected');
+    } else {
+      row.querySelectorAll('.option-pill').forEach(s => s.classList.remove('selected'));
+      p.classList.add('selected');
+    }
+  }));
+
+  // Stripes : sélection unique parmi 0/1/2/3/4.
+  document.querySelectorAll('.stripe-pill').forEach(p => p.addEventListener('click', () => {
+    const row = p.parentElement;
+    if (!row || !row.classList.contains('stripes-row')) return;
+    row.querySelectorAll('.stripe-pill').forEach(s => s.classList.remove('selected'));
+    p.classList.add('selected');
+  }));
+
+  // Sync : toggle d'un switch dans /notifications-settings → toggle .bell-icon
+  // dans le planning pour le même cours (data-course="X").
+  document.querySelectorAll('.notif-row[data-course] input[type="checkbox"]').forEach(cb => {
+    cb.addEventListener('change', () => {
+      const row = cb.closest('.notif-row');
+      const course = row && row.dataset.course;
+      if (!course) return;
+      document.querySelectorAll('.bell-icon[data-course="' + course + '"]').forEach(b => {
+        b.classList.toggle('on', cb.checked);
+      });
+    });
+  });
+
+  // Bouton "Enregistrer mes choix" sur l'écran notifications.
+  const notifSaveBtn = document.getElementById('notif-save-btn');
+  if (notifSaveBtn) {
+    notifSaveBtn.addEventListener('click', () => {
+      // Met à jour le compteur de cours suivis sur le profile.
+      const checked = document.querySelectorAll('.notif-row[data-course] input[type="checkbox"]:checked').length;
+      const counter = document.querySelector('.kv-row[data-goto="notifications-settings"] .kv-value');
+      if (counter) counter.innerHTML = checked + ' cours suivis<span class="kv-arrow">›</span>';
+      show('profile');
+    });
+  }
+
+  // Boutons "Retard" / "Absence" du dashboard admin → écran admin-notify pré-rempli.
+  document.querySelectorAll('[data-admin-notify]').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const courseName = btn.dataset.courseName || '';
+      const courseTime = btn.dataset.courseTime || '';
+      const subtitle = document.getElementById('admin-notify-course');
+      if (subtitle) subtitle.textContent = courseName + ' · ' + courseTime;
+      // Sélection initiale : retard ou absent.
+      const isAbsent = btn.dataset.defaultType === 'absent';
+      document.querySelectorAll('[data-notify-type]').forEach(p => {
+        p.classList.toggle('selected', p.dataset.notifyType === (isAbsent ? 'absent' : 'late'));
+      });
+      document.getElementById('notify-late-field').style.display = isAbsent ? 'none' : '';
+      document.getElementById('notify-absent-field').style.display = isAbsent ? '' : 'none';
+      show('admin-notify');
+    });
+  });
+
+  // Toggle entre champ "Retard" et champ "Absence" dans admin-notify.
+  document.querySelectorAll('[data-notify-type]').forEach(p => {
+    p.addEventListener('click', () => {
+      const isLate = p.dataset.notifyType === 'late';
+      document.getElementById('notify-late-field').style.display = isLate ? '' : 'none';
+      document.getElementById('notify-absent-field').style.display = isLate ? 'none' : '';
+    });
+  });
+
+  // === Visibilité du poids : sélection radio + bouton Enregistrer ===
+  const weightLabels = { public: 'Public', members: 'Adhérents seulement', private: 'Privé' };
+  document.querySelectorAll('[data-weight-choice]').forEach(row => {
+    row.addEventListener('click', () => {
+      document.querySelectorAll('[data-weight-choice]').forEach(r => r.classList.remove('selected'));
+      row.classList.add('selected');
+    });
+  });
+  const weightSaveBtn = document.getElementById('weight-save-btn');
+  if (weightSaveBtn) {
+    weightSaveBtn.addEventListener('click', () => {
+      const sel = document.querySelector('[data-weight-choice].selected');
+      const choice = sel ? sel.dataset.weightChoice : 'members';
+      const summary = document.getElementById('weight-visibility-summary');
+      if (summary) summary.innerHTML = (weightLabels[choice] || 'Adhérents seulement') + '<span class="kv-arrow">›</span>';
+      show('profile');
+    });
+  }
+
+  // === Admin planning : date picker (flèches + input date) ===
+  const adminDateInput = document.getElementById('admin-date-input');
+  const adminDateCurrent = document.getElementById('admin-date-current');
+  const adminDatePrev = document.getElementById('admin-date-prev');
+  const adminDateNext = document.getElementById('admin-date-next');
+  function formatFrenchDate(dateStr) {
+    const d = new Date(dateStr + 'T00:00:00');
+    const days = ['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'];
+    const months = ['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
+    return days[d.getDay()] + ' ' + d.getDate() + ' ' + months[d.getMonth()] + ' ' + d.getFullYear();
+  }
+  function updateAdminDate(dateStr) {
+    if (adminDateInput) adminDateInput.value = dateStr;
+    if (adminDateCurrent) adminDateCurrent.textContent = formatFrenchDate(dateStr);
+  }
+  function shiftAdminDate(days) {
+    const d = new Date((adminDateInput && adminDateInput.value || '2026-05-06') + 'T00:00:00');
+    d.setDate(d.getDate() + days);
+    updateAdminDate(d.toISOString().slice(0, 10));
+  }
+  if (adminDateInput) adminDateInput.addEventListener('change', e => updateAdminDate(e.target.value));
+  if (adminDatePrev) adminDatePrev.addEventListener('click', () => shiftAdminDate(-1));
+  if (adminDateNext) adminDateNext.addEventListener('click', () => shiftAdminDate(1));
+
+  // === Broadcast : envoie une alerte → bandeau rouge en haut du planning ===
+  const broadcastBanner = document.getElementById('broadcast-banner');
+  const broadcastSendBtn = document.getElementById('broadcast-send-btn');
+  let broadcastAutoHideTimer = null;
+
+  function hideBroadcast() {
+    if (broadcastBanner) broadcastBanner.classList.remove('show');
+    if (broadcastAutoHideTimer) {
+      clearTimeout(broadcastAutoHideTimer);
+      broadcastAutoHideTimer = null;
+    }
+  }
+
+  if (broadcastSendBtn) {
+    broadcastSendBtn.addEventListener('click', () => {
+      const author = document.querySelector('[data-broadcast-author].selected');
+      const authorName = author ? author.dataset.broadcastAuthor : 'Victor';
+      const message = (document.getElementById('broadcast-message').value || '').trim();
+      if (!message) {
+        document.getElementById('broadcast-message').focus();
+        return;
+      }
+      // Lit la durée choisie (en heures), 24h par défaut.
+      const durationEl = document.querySelector('[data-duration-hours].selected');
+      const hours = durationEl ? parseInt(durationEl.dataset.durationHours, 10) : 24;
+      document.getElementById('broadcast-author').textContent = 'De ' + authorName;
+      document.getElementById('broadcast-text').textContent = message;
+      if (broadcastBanner) broadcastBanner.classList.add('show');
+
+      // Auto-hide après la durée choisie. Le clamp à 2^31-1 évite l'overflow setTimeout.
+      if (broadcastAutoHideTimer) clearTimeout(broadcastAutoHideTimer);
+      const ms = Math.min(hours * 3600 * 1000, 2147483000);
+      broadcastAutoHideTimer = setTimeout(hideBroadcast, ms);
+
+      document.getElementById('broadcast-message').value = '';
+      show('planning');
+    });
+  }
+  const broadcastClose = document.getElementById('broadcast-close');
+  if (broadcastClose) {
+    broadcastClose.addEventListener('click', hideBroadcast);
+  }
+
+  // === DM : envoi de photo + note vocale (mock visuel) ===
+  function appendDmMessage(html) {
+    const list = document.getElementById('dm-messages');
+    if (!list) return;
+    const wrap = document.createElement('div');
+    wrap.innerHTML = html;
+    list.appendChild(wrap.firstElementChild);
+    const messages = document.getElementById('dm-messages-wrap');
+    if (messages) messages.scrollTop = messages.scrollHeight;
+  }
+  // Click sur l'icône photo : envoie un message "photo".
+  document.querySelectorAll('.screen[data-screen="dm-thread"] .msg-icon-btn[data-action="photo"]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      appendDmMessage('<div class="chat-msg mine photo"><div class="chat-photo">📷 Photo envoyée</div></div>');
+    });
+  });
+  // Click sur l'icône micro : démarre/arrête une note vocale.
+  let recordingStart = null;
+  let recordingTimer = null;
+  function setMicState(recording) {
+    const micBtn = document.getElementById('dm-mic-btn');
+    if (!micBtn) return;
+    micBtn.style.background = recording ? '#FEE2E2' : '';
+    micBtn.style.borderRadius = '50%';
+    micBtn.style.color = recording ? '#DC2626' : '';
+  }
+  document.querySelectorAll('.screen[data-screen="dm-thread"] .msg-icon-btn[data-action="mic"]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (!recordingStart) {
+        recordingStart = Date.now();
+        setMicState(true);
+        recordingTimer = setTimeout(() => {
+          // Auto-stop après 30s pour éviter qu'un test bloque l'UI.
+          if (recordingStart) btn.click();
+        }, 30000);
+      } else {
+        const duration = Math.max(1, Math.round((Date.now() - recordingStart) / 1000));
+        const mm = String(Math.floor(duration / 60)).padStart(2, '0');
+        const ss = String(duration % 60).padStart(2, '0');
+        // Génère 22 barres de waveform de hauteurs aléatoires pour la démo.
+        let bars = '';
+        for (let i = 0; i < 22; i++) {
+          const h = 4 + Math.round(Math.random() * 12);
+          bars += '<span class="bar" style="height:' + h + 'px"></span>';
+        }
+        appendDmMessage(
+          '<div class="chat-msg mine voice">' +
+          '<svg class="chat-voice-play" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>' +
+          '<div class="chat-voice-wave">' + bars + '</div>' +
+          '<span class="chat-voice-time">' + mm + ':' + ss + '</span>' +
+          '</div>'
+        );
+        recordingStart = null;
+        if (recordingTimer) { clearTimeout(recordingTimer); recordingTimer = null; }
+        setMicState(false);
+      }
+    });
+  });
+})();
+</script>
+</body>
+</html>

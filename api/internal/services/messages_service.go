@@ -1,0 +1,352 @@
+package services
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"time"
+
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
+
+	"github.com/boa-club/api/internal/models"
+)
+
+// Erreurs métier de MessagesService.
+var (
+	ErrConversationNotFound = errors.New("conversation introuvable")
+	ErrNotParticipant       = errors.New("tu ne fais pas partie de cette conversation")
+	ErrCannotDMSelf         = errors.New("impossible de s'envoyer un DM à soi-même")
+	ErrEmptyMessage         = errors.New("message vide")
+)
+
+// MessagesService gère DM + threads de créneaux libres.
+type MessagesService struct {
+	db *pgxpool.Pool
+}
+
+func NewMessagesService(db *pgxpool.Pool) *MessagesService {
+	return &MessagesService{db: db}
+}
+
+// OpenDM trouve la conversation directe entre `userID` et `otherID` ou la crée
+// si elle n'existe pas. Idempotent : appeler 2x renvoie la même conversation.
+func (s *MessagesService) OpenDM(ctx context.Context, userID, otherID uuid.UUID) (uuid.UUID, error) {
+	if userID == otherID {
+		return uuid.Nil, ErrCannotDMSelf
+	}
+
+	// Cherche une conversation directe partagée par les 2 users.
+	var convID uuid.UUID
+	err := s.db.QueryRow(ctx, `
+		SELECT c.id FROM conversations c
+		JOIN conversation_participants p1 ON p1.conversation_id = c.id AND p1.user_id = $1
+		JOIN conversation_participants p2 ON p2.conversation_id = c.id AND p2.user_id = $2
+		WHERE c.type = 'direct'
+		LIMIT 1
+	`, userID, otherID).Scan(&convID)
+	if err == nil {
+		return convID, nil
+	}
+	if !errors.Is(err, pgx.ErrNoRows) {
+		return uuid.Nil, fmt.Errorf("lookup DM : %w", err)
+	}
+
+	// Sinon : on la crée + ajout des 2 participants en transaction.
+	tx, err := s.db.Begin(ctx)
+	if err != nil {
+		return uuid.Nil, fmt.Errorf("begin tx : %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	if err := tx.QueryRow(ctx, `INSERT INTO conversations (type) VALUES ('direct') RETURNING id`).Scan(&convID); err != nil {
+		return uuid.Nil, fmt.Errorf("insert conversation : %w", err)
+	}
+	if _, err := tx.Exec(ctx, `
+		INSERT INTO conversation_participants (conversation_id, user_id) VALUES ($1, $2), ($1, $3)
+	`, convID, userID, otherID); err != nil {
+		return uuid.Nil, fmt.Errorf("insert participants : %w", err)
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return uuid.Nil, fmt.Errorf("commit : %w", err)
+	}
+	return convID, nil
+}
+
+// EnsureSlotThread crée la conversation slot_thread d'un créneau si elle n'existe pas.
+// Y ajoute aussi le user spécifié comme participant (idempotent).
+func (s *MessagesService) EnsureSlotThread(ctx context.Context, slotID, userID uuid.UUID) (uuid.UUID, error) {
+	var convID uuid.UUID
+
+	tx, err := s.db.Begin(ctx)
+	if err != nil {
+		return uuid.Nil, fmt.Errorf("begin tx : %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	err = tx.QueryRow(ctx, `SELECT id FROM conversations WHERE slot_id = $1`, slotID).Scan(&convID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		if err := tx.QueryRow(ctx, `
+			INSERT INTO conversations (type, slot_id) VALUES ('slot_thread', $1) RETURNING id
+		`, slotID).Scan(&convID); err != nil {
+			return uuid.Nil, fmt.Errorf("create slot_thread : %w", err)
+		}
+	} else if err != nil {
+		return uuid.Nil, fmt.Errorf("lookup slot_thread : %w", err)
+	}
+
+	if _, err := tx.Exec(ctx, `
+		INSERT INTO conversation_participants (conversation_id, user_id)
+		VALUES ($1, $2)
+		ON CONFLICT (conversation_id, user_id) DO NOTHING
+	`, convID, userID); err != nil {
+		return uuid.Nil, fmt.Errorf("add participant : %w", err)
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return uuid.Nil, fmt.Errorf("commit : %w", err)
+	}
+	return convID, nil
+}
+
+// requireParticipant vérifie que userID est bien dans la conversation. Renvoie ErrNotParticipant sinon.
+func (s *MessagesService) requireParticipant(ctx context.Context, convID, userID uuid.UUID) error {
+	var exists bool
+	err := s.db.QueryRow(ctx, `
+		SELECT EXISTS (
+			SELECT 1 FROM conversation_participants
+			WHERE conversation_id = $1 AND user_id = $2
+		)
+	`, convID, userID).Scan(&exists)
+	if err != nil {
+		return fmt.Errorf("check participant : %w", err)
+	}
+	if !exists {
+		return ErrNotParticipant
+	}
+	return nil
+}
+
+// ListDMs renvoie les conversations DM de userID, ordonnées par dernier message.
+func (s *MessagesService) ListDMs(ctx context.Context, userID uuid.UUID) ([]models.ConversationSummary, error) {
+	rows, err := s.db.Query(ctx, `
+		SELECT
+			c.id, c.type::text, c.slot_id, c.last_message_at,
+			ou.id, ou.first_name, ou.last_name_initial, ou.belt::text, ou.stripes, ou.avatar_url, ou.role::text,
+			(
+				SELECT m.content FROM messages m
+				WHERE m.conversation_id = c.id AND m.deleted_at IS NULL
+				ORDER BY m.created_at DESC LIMIT 1
+			) AS last_content,
+			(
+				SELECT m.type::text FROM messages m
+				WHERE m.conversation_id = c.id AND m.deleted_at IS NULL
+				ORDER BY m.created_at DESC LIMIT 1
+			) AS last_type,
+			COALESCE(p.last_read_at, '1970-01-01'::timestamptz) AS my_last_read,
+			(
+				SELECT COUNT(*) FROM messages m
+				WHERE m.conversation_id = c.id
+				  AND m.created_at > COALESCE(p.last_read_at, '1970-01-01'::timestamptz)
+				  AND m.sender_id <> $1 AND m.deleted_at IS NULL
+			) AS unread_count
+		FROM conversations c
+		JOIN conversation_participants p ON p.conversation_id = c.id AND p.user_id = $1
+		LEFT JOIN conversation_participants po ON po.conversation_id = c.id AND po.user_id <> $1
+		LEFT JOIN users ou ON ou.id = po.user_id
+		WHERE c.type = 'direct'
+		ORDER BY c.last_message_at DESC NULLS LAST
+	`, userID)
+	if err != nil {
+		return nil, fmt.Errorf("query DMs : %w", err)
+	}
+	defer rows.Close()
+
+	out := []models.ConversationSummary{}
+	for rows.Next() {
+		var (
+			s          models.ConversationSummary
+			convType   string
+			otherID    *uuid.UUID
+			otherFirst *string
+			otherLast  *string
+			otherBelt  *string
+			otherStrp  *int
+			otherAv    *string
+			otherRole  *string
+			lastType   *string
+			myLastRead time.Time
+		)
+		if err := rows.Scan(
+			&s.ID, &convType, &s.SlotID, &s.LastMessageAt,
+			&otherID, &otherFirst, &otherLast, &otherBelt, &otherStrp, &otherAv, &otherRole,
+			&s.LastMessage, &lastType, &myLastRead, &s.UnreadCount,
+		); err != nil {
+			return nil, fmt.Errorf("scan DM : %w", err)
+		}
+		s.Type = models.ConversationType(convType)
+		if lastType != nil {
+			mt := models.MessageType(*lastType)
+			s.LastMessageType = &mt
+		}
+		if otherID != nil && otherFirst != nil {
+			s.Other = &models.UserBrief{
+				ID:              *otherID,
+				FirstName:       *otherFirst,
+				LastNameInitial: deref(otherLast),
+				Belt:            models.Belt(deref(otherBelt)),
+				Stripes:         derefInt(otherStrp),
+				AvatarURL:       otherAv,
+				IsCoach:         otherRole != nil && (*otherRole == "coach" || *otherRole == "admin"),
+			}
+		}
+		out = append(out, s)
+	}
+	return out, rows.Err()
+}
+
+// ListMessages renvoie les messages d'une conversation, page par page (par défaut 50 max).
+// `before` permet de paginer (renvoie les messages strictement antérieurs).
+func (s *MessagesService) ListMessages(ctx context.Context, convID, userID uuid.UUID, before *time.Time, limit int) ([]models.Message, error) {
+	if err := s.requireParticipant(ctx, convID, userID); err != nil {
+		return nil, err
+	}
+	if limit <= 0 || limit > 100 {
+		limit = 50
+	}
+
+	var beforeArg any = "9999-01-01"
+	if before != nil {
+		beforeArg = *before
+	}
+
+	rows, err := s.db.Query(ctx, `
+		SELECT
+			m.id, m.conversation_id, m.type::text, m.content, m.media_url, m.media_duration_seconds, m.created_at,
+			u.id, u.first_name, u.last_name_initial, u.belt::text, u.stripes, u.avatar_url, u.role::text
+		FROM messages m
+		LEFT JOIN users u ON u.id = m.sender_id
+		WHERE m.conversation_id = $1
+		  AND m.created_at < $2
+		  AND m.deleted_at IS NULL
+		ORDER BY m.created_at DESC
+		LIMIT $3
+	`, convID, beforeArg, limit)
+	if err != nil {
+		return nil, fmt.Errorf("query messages : %w", err)
+	}
+	defer rows.Close()
+
+	out := []models.Message{}
+	for rows.Next() {
+		var (
+			m       models.Message
+			msgType string
+			senderID *uuid.UUID
+			senderFirst *string
+			senderLast *string
+			senderBelt *string
+			senderStrp *int
+			senderAv   *string
+			senderRole *string
+		)
+		if err := rows.Scan(
+			&m.ID, &m.ConversationID, &msgType, &m.Content, &m.MediaURL, &m.MediaDurationSeconds, &m.CreatedAt,
+			&senderID, &senderFirst, &senderLast, &senderBelt, &senderStrp, &senderAv, &senderRole,
+		); err != nil {
+			return nil, fmt.Errorf("scan message : %w", err)
+		}
+		m.Type = models.MessageType(msgType)
+		if senderID != nil && senderFirst != nil {
+			m.Sender = &models.UserBrief{
+				ID:              *senderID,
+				FirstName:       *senderFirst,
+				LastNameInitial: deref(senderLast),
+				Belt:            models.Belt(deref(senderBelt)),
+				Stripes:         derefInt(senderStrp),
+				AvatarURL:       senderAv,
+				IsCoach:         senderRole != nil && (*senderRole == "coach" || *senderRole == "admin"),
+			}
+		}
+		out = append(out, m)
+	}
+	return out, rows.Err()
+}
+
+// SendText envoie un message texte simple.
+func (s *MessagesService) SendText(ctx context.Context, convID, userID uuid.UUID, content string) (*models.Message, error) {
+	if err := s.requireParticipant(ctx, convID, userID); err != nil {
+		return nil, err
+	}
+	if content == "" {
+		return nil, ErrEmptyMessage
+	}
+
+	var (
+		m       models.Message
+		msgType string
+		first   string
+		lastN   string
+		beltStr string
+		stripes int
+		av      *string
+		role    string
+	)
+	err := s.db.QueryRow(ctx, `
+		WITH inserted AS (
+			INSERT INTO messages (conversation_id, sender_id, type, content)
+			VALUES ($1, $2, 'text', $3)
+			RETURNING id, conversation_id, type::text, content, created_at
+		)
+		SELECT i.id, i.conversation_id, i.type, i.content, i.created_at,
+		       u.first_name, u.last_name_initial, u.belt::text, u.stripes, u.avatar_url, u.role::text
+		FROM inserted i
+		JOIN users u ON u.id = $2
+	`, convID, userID, content).Scan(
+		&m.ID, &m.ConversationID, &msgType, &m.Content, &m.CreatedAt,
+		&first, &lastN, &beltStr, &stripes, &av, &role,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("insert message : %w", err)
+	}
+	m.Type = models.MessageType(msgType)
+	m.Sender = &models.UserBrief{
+		ID:              userID,
+		FirstName:       first,
+		LastNameInitial: lastN,
+		Belt:            models.Belt(beltStr),
+		Stripes:         stripes,
+		AvatarURL:       av,
+		IsCoach:         role == "coach" || role == "admin",
+	}
+	return &m, nil
+}
+
+// MarkRead met à jour `last_read_at` du participant à maintenant.
+func (s *MessagesService) MarkRead(ctx context.Context, convID, userID uuid.UUID) error {
+	if err := s.requireParticipant(ctx, convID, userID); err != nil {
+		return err
+	}
+	_, err := s.db.Exec(ctx, `
+		UPDATE conversation_participants
+		SET last_read_at = NOW()
+		WHERE conversation_id = $1 AND user_id = $2
+	`, convID, userID)
+	return err
+}
+
+// --- helpers ---
+
+func deref(s *string) string {
+	if s == nil {
+		return ""
+	}
+	return *s
+}
+func derefInt(i *int) int {
+	if i == nil {
+		return 0
+	}
+	return *i
+}

@@ -1,0 +1,18 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "proto",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["proto/serve.py", "8888"],
+      "port": 8888
+    },
+    {
+      "name": "mobile",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["expo", "start", "--web", "--port", "8082"],
+      "port": 8082,
+      "cwd": "mobile"
+    }
+  ]
+}
