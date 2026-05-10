@@ -4,8 +4,8 @@ services:
     runtime: docker
     plan: free
     region: frankfurt
-    rootDir: api
-    dockerfilePath: ./Dockerfile
+    dockerfilePath: ./api/Dockerfile
+    dockerContext: ./api
     healthCheckPath: /api/health
     autoDeploy: true
 
