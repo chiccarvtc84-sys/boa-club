@@ -1,4 +1,11 @@
-import { StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
+import {
+  Image,
+  StyleSheet,
+  Text,
+  View,
+  type StyleProp,
+  type ViewStyle,
+} from 'react-native';
 
 import { colors } from '../theme/colors';
 
@@ -9,6 +16,12 @@ interface AvatarProps {
   color?: AvatarColor;
   size?: number;
   style?: StyleProp<ViewStyle>;
+  /**
+   * Si défini (et non null/vide), affiche l'image au lieu des initiales.
+   * Accepte une URI locale (file://...) renvoyée par expo-image-picker
+   * ou une URL distante (https://...).
+   */
+  imageUri?: string | null;
 }
 
 const PALETTE: Record<AvatarColor, string> = {
@@ -19,7 +32,31 @@ const PALETTE: Record<AvatarColor, string> = {
   5: colors.belt.brown,
 };
 
-export function Avatar({ initials, color = 1, size = 40, style }: AvatarProps) {
+export function Avatar({
+  initials,
+  color = 1,
+  size = 40,
+  style,
+  imageUri,
+}: AvatarProps) {
+  if (imageUri) {
+    return (
+      <Image
+        source={{ uri: imageUri }}
+        style={[
+          styles.base,
+          {
+            width: size,
+            height: size,
+            borderRadius: size / 2,
+          },
+          style,
+        ]}
+        // Cover : recadre le centre, plus joli pour les portraits.
+        resizeMode="cover"
+      />
+    );
+  }
   return (
     <View
       style={[

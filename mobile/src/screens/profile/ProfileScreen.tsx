@@ -4,7 +4,6 @@ import { LinearGradient } from 'expo-linear-gradient';
 
 import { authApi } from '../../api/auth';
 import { Avatar } from '../../components/Avatar';
-import { BoaLogo } from '../../components/BoaLogo';
 import { Button } from '../../components/Button';
 import { useAuthStore } from '../../store/authStore';
 import { useNotificationsStore } from '../../store/notificationsStore';
@@ -93,7 +92,6 @@ export function ProfileScreen({ navigation }: ProfileScreenProps) {
           end={{ x: 1, y: 0.5 }}
           style={styles.clubBanner}
         >
-          <BoaLogo size={42} />
           <View style={styles.clubBannerText}>
             <Text style={styles.clubName}>Clube Desportivo Boa</Text>
             <Text style={styles.clubLoc}>Sorgues · Vedène · Membre actif</Text>
@@ -102,7 +100,7 @@ export function ProfileScreen({ navigation }: ProfileScreenProps) {
 
         {/* Hero */}
         <View style={styles.hero}>
-          <Avatar initials={initials} color={1} size={60} />
+          <Avatar initials={initials} color={1} size={60} imageUri={user.avatar_url} />
           <View style={styles.heroText}>
             <Text style={styles.userName}>
               {user.first_name} {user.last_name_initial}

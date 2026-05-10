@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import {
+  ActionSheetIOS,
+  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -11,6 +13,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useMutation } from '@tanstack/react-query';
+import * as ImagePicker from 'expo-image-picker';
 
 import { meApi } from '../../api/me';
 import { Avatar } from '../../components/Avatar';
@@ -56,6 +59,11 @@ export function EditProfileScreen({ navigation }: EditProfileScreenProps) {
   const [disciplines, setDisciplines] = useState<string[]>(
     user?.disciplines && user.disciplines.length > 0 ? user.disciplines : ['JJB Gi'],
   );
+  // Photo de profil : on garde une URI locale en state pour l'aperçu.
+  // Init = avatar_url existant si déjà présent (URL distante), sinon null.
+  const [avatarUri, setAvatarUri] = useState<string | null>(
+    user?.avatar_url ?? null,
+  );
 
   if (!user) return null;
 
@@ -65,10 +73,73 @@ export function EditProfileScreen({ navigation }: EditProfileScreenProps) {
     );
   };
 
+  // ── Photo de profil : sélection caméra / galerie ────────────────
+
+  const pickPhotoFromSource = async (source: 'camera' | 'library') => {
+    const perm =
+      source === 'camera'
+        ? await ImagePicker.requestCameraPermissionsAsync()
+        : await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) {
+      Alert.alert(
+        'Permission refusée',
+        source === 'camera'
+          ? "L'app a besoin d'accéder à la caméra pour prendre une photo."
+          : "L'app a besoin d'accéder à ta galerie pour choisir une photo.",
+      );
+      return;
+    }
+    const result =
+      source === 'camera'
+        ? await ImagePicker.launchCameraAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            allowsEditing: true,
+            aspect: [1, 1],
+            quality: 0.85,
+          })
+        : await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            allowsEditing: true,
+            aspect: [1, 1],
+            quality: 0.85,
+          });
+    if (!result.canceled && result.assets?.[0]) {
+      setAvatarUri(result.assets[0].uri);
+    }
+  };
+
+  const onChangePhoto = () => {
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          options: ['Annuler', 'Prendre une photo', 'Choisir dans la galerie'],
+          cancelButtonIndex: 0,
+        },
+        (idx) => {
+          if (idx === 1) pickPhotoFromSource('camera');
+          else if (idx === 2) pickPhotoFromSource('library');
+        },
+      );
+    } else {
+      Alert.alert('Photo de profil', undefined, [
+        { text: 'Annuler', style: 'cancel' },
+        { text: 'Prendre une photo', onPress: () => pickPhotoFromSource('camera') },
+        { text: 'Galerie', onPress: () => pickPhotoFromSource('library') },
+      ]);
+    }
+  };
+
   const updateMutation = useMutation({
     mutationFn: meApi.update,
     onSuccess: async (updatedUser) => {
-      await setUser(updatedUser);
+      /*
+       * On préserve l'URI de la photo choisie côté local : tant que le
+       * backend n'a pas d'endpoint d'upload (POST /api/uploads), l'API
+       * renvoie un user sans avatar_url. On l'écrase manuellement avec
+       * notre URI locale (file://...) pour que l'aperçu reste visible
+       * dans toute l'app pendant la session.
+       */
+      await setUser({ ...updatedUser, avatar_url: avatarUri });
       navigation.goBack();
     },
   });
@@ -110,12 +181,26 @@ export function EditProfileScreen({ navigation }: EditProfileScreenProps) {
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
           {/* Photo */}
           <View style={styles.avatarRow}>
-            <Avatar initials={initials} color={1} size={64} />
+            <Pressable onPress={onChangePhoto}>
+              <Avatar
+                initials={initials}
+                color={1}
+                size={64}
+                imageUri={avatarUri}
+              />
+            </Pressable>
             <View style={{ flex: 1 }}>
               <Text style={styles.avatarTitle}>Photo de profil</Text>
-              <Pressable>
-                <Text style={styles.avatarLink}>Changer la photo</Text>
+              <Pressable onPress={onChangePhoto}>
+                <Text style={styles.avatarLink}>
+                  {avatarUri ? 'Changer la photo' : 'Ajouter une photo'}
+                </Text>
               </Pressable>
+              {avatarUri ? (
+                <Pressable onPress={() => setAvatarUri(null)}>
+                  <Text style={styles.avatarRemove}>Retirer</Text>
+                </Pressable>
+              ) : null}
             </View>
           </View>
 
@@ -302,6 +387,7 @@ const styles = StyleSheet.create({
   },
   avatarTitle: { fontSize: 14, fontWeight: '600', color: colors.black },
   avatarLink: { color: colors.primary, fontWeight: '600', fontSize: 13, marginTop: 4 },
+  avatarRemove: { color: colors.gray500, fontSize: 12, marginTop: 4 },
 
   row: { flexDirection: 'row', gap: 8 },
   rowItem: { flex: 1 },
