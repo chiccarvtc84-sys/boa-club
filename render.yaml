@@ -1,0 +1,39 @@
+services:
+  - type: web
+    name: boa-club-api
+    runtime: docker
+    plan: free
+    region: frankfurt
+    rootDir: api
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/health
+    autoDeploy: true
+
+    envVars:
+      - key: ENV
+        value: production
+      - key: LOG_LEVEL
+        value: info
+      - key: PORT
+        value: "8080"
+      - key: BCRYPT_COST
+        value: "12"
+      - key: JWT_ACCESS_TTL
+        value: 15m
+      - key: JWT_REFRESH_TTL
+        value: 720h
+      - key: EMAIL_PROVIDER
+        value: resend
+      - key: EMAIL_FROM
+        value: Boa Club <noreply@clubedesportivoboa.fr>
+      - key: FCM_CREDENTIALS_FILE
+        value: /etc/secrets/firebase-admin-key.json
+
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: EMAIL_API_KEY
+        sync: false

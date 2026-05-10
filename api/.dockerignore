@@ -1,0 +1,14 @@
+.env
+.env.*
+firebase-admin-key.json
+*.p8
+*.p12
+bin/
+tmp/
+*.exe
+*_test.go
+testdata/
+.idea/
+.vscode/
+*.swp
+.DS_Store
