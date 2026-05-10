@@ -3,21 +3,19 @@
  *
  * Fonctions :
  *  - Saisie texte multi-ligne
- *  - 📷 Bouton photo : action sheet (caméra / galerie) → preview modal → envoi
- *  - 🎤 Bouton voix : appui long pour enregistrer, relâche pour envoyer
+ *  - 📷 Bouton photo : action sheet (caméra / galerie) → preview modal →
+ *    upload R2 → envoi en tant que message photo (type='photo', media_url).
+ *  - 🎤 Bouton voix : appui long pour enregistrer, relâche pour upload R2 +
+ *    envoi en tant que note vocale (type='voice', media_url, duration).
  *
- * Le composant gère lui-même la mutation d'envoi vers `messagesApi.send`.
- * Le parent fournit juste `conversationId` + `onSent` pour invalider ses
- * propres caches react-query.
- *
- * NOTE : tant que le backend n'a pas d'endpoint d'upload (POST /api/uploads),
- * les photos et notes vocales sont envoyées comme texte de substitution
- * ("📷 Photo envoyée" / "🎤 Note vocale (Xs)"). Quand l'upload sera prêt,
- * il faudra remplacer la logique dans `sendPhoto` et `stopAndSendRecording`.
+ * Le composant gère lui-même les mutations d'envoi (texte + média). Le parent
+ * fournit `conversationId` + `onSent` pour invalider ses propres caches
+ * react-query.
  */
 import { useEffect, useRef, useState } from 'react';
 import {
   ActionSheetIOS,
+  ActivityIndicator,
   Alert,
   Image,
   Modal,
@@ -39,14 +37,12 @@ import {
 } from 'expo-audio';
 
 import { messagesApi } from '../api/messages';
+import { uploadFile, UploadError } from '../api/uploads';
 import { colors } from '../theme/colors';
 
 interface MessageComposerProps {
-  /** ID de la conversation cible (DM ou slot_thread). */
   conversationId: string;
-  /** Callback appelé après chaque envoi réussi (parent peut invalider ses queries). */
   onSent?: () => void;
-  /** Placeholder de l'input (varie selon le contexte). */
   placeholder?: string;
 }
 
@@ -60,10 +56,28 @@ export function MessageComposer({
   const [recordingSeconds, setRecordingSeconds] = useState(0);
   const recordingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // État d'upload séparé du sendMutation pour afficher 2 phases :
+  //   1. "Upload en cours" pendant que R2 reçoit le binaire
+  //   2. "Envoi du message" pendant que /api/conversations/:id/messages tourne
+  const [isUploadingMedia, setIsUploadingMedia] = useState(false);
+
   const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
 
-  const sendMutation = useMutation({
+  // ── Mutations ────────────────────────────────────────────────────
+
+  const sendTextMutation = useMutation({
     mutationFn: (content: string) => messagesApi.send(conversationId, content),
+    onSuccess: () => onSent?.(),
+  });
+
+  const sendPhotoMutation = useMutation({
+    mutationFn: (mediaUrl: string) => messagesApi.sendPhoto(conversationId, mediaUrl),
+    onSuccess: () => onSent?.(),
+  });
+
+  const sendVoiceMutation = useMutation({
+    mutationFn: (params: { mediaUrl: string; durationSec: number }) =>
+      messagesApi.sendVoice(conversationId, params.mediaUrl, params.durationSec),
     onSuccess: () => onSent?.(),
   });
 
@@ -72,13 +86,15 @@ export function MessageComposer({
   const onSendText = () => {
     const text = draft.trim();
     if (!text) return;
-    sendMutation.mutate(text);
+    sendTextMutation.mutate(text);
     setDraft('');
   };
 
   // ── Photos ───────────────────────────────────────────────────────
 
-  const ensureMediaPermission = async (source: 'camera' | 'library'): Promise<boolean> => {
+  const ensureMediaPermission = async (
+    source: 'camera' | 'library',
+  ): Promise<boolean> => {
     if (source === 'camera') {
       const res = await ImagePicker.requestCameraPermissionsAsync();
       if (!res.granted) {
@@ -144,11 +160,26 @@ export function MessageComposer({
     }
   };
 
-  const sendPhoto = () => {
+  /**
+   * Upload R2 puis envoi du message photo. Si l'upload échoue (R2 down,
+   * timeout, fichier trop gros), on prévient l'utilisateur sans rien envoyer.
+   */
+  const sendPhoto = async () => {
     if (!previewPhotoUri) return;
-    // TODO : remplacer par l'upload réel quand POST /api/uploads sera dispo.
-    sendMutation.mutate('📷 Photo envoyée');
-    setPreviewPhotoUri(null);
+    setIsUploadingMedia(true);
+    try {
+      const publicUrl = await uploadFile(previewPhotoUri, { prefix: 'messages' });
+      setPreviewPhotoUri(null);
+      sendPhotoMutation.mutate(publicUrl);
+    } catch (err) {
+      const detail =
+        err instanceof UploadError
+          ? err.message
+          : 'Impossible d\'envoyer la photo.';
+      Alert.alert('Échec', detail);
+    } finally {
+      setIsUploadingMedia(false);
+    }
   };
 
   // ── Voix ─────────────────────────────────────────────────────────
@@ -198,8 +229,30 @@ export function MessageComposer({
         return;
       }
 
-      // TODO : remplacer par l'upload réel quand POST /api/uploads sera dispo.
-      sendMutation.mutate(`🎤 Note vocale (${seconds}s)`);
+      // expo-audio expose l'URI du fichier enregistré via `audioRecorder.uri`.
+      const uri = audioRecorder.uri;
+      if (!uri) {
+        Alert.alert('Erreur', "Enregistrement introuvable.");
+        return;
+      }
+
+      setIsUploadingMedia(true);
+      try {
+        const publicUrl = await uploadFile(uri, {
+          prefix: 'messages',
+          contentType: 'audio/mp4', // expo-audio HIGH_QUALITY produit du AAC dans un container MP4
+          fileName: `voice-${Date.now()}.m4a`,
+        });
+        sendVoiceMutation.mutate({ mediaUrl: publicUrl, durationSec: seconds });
+      } catch (err) {
+        const detail =
+          err instanceof UploadError
+            ? err.message
+            : "Impossible d'envoyer la note vocale.";
+        Alert.alert('Échec', detail);
+      } finally {
+        setIsUploadingMedia(false);
+      }
     } catch {
       // ignore
     }
@@ -226,14 +279,29 @@ export function MessageComposer({
     };
   }, []);
 
+  const isBusy =
+    isUploadingMedia ||
+    sendTextMutation.isPending ||
+    sendPhotoMutation.isPending ||
+    sendVoiceMutation.isPending;
+
   return (
     <>
-      {/* Indicateur d'enregistrement vocal en cours (au-dessus de l'input bar) */}
+      {/* Bandeau "envoi en cours" si on uploade un média */}
+      {isUploadingMedia ? (
+        <View style={styles.uploadBar}>
+          <ActivityIndicator size="small" color={colors.primary} />
+          <Text style={styles.uploadText}>Envoi du média en cours…</Text>
+        </View>
+      ) : null}
+
+      {/* Indicateur d'enregistrement vocal en cours */}
       {audioRecorder.isRecording ? (
         <View style={styles.recordingBar}>
           <View style={styles.recordingDot} />
           <Text style={styles.recordingText}>
-            Enregistrement… {String(Math.floor(recordingSeconds / 60)).padStart(1, '0')}:
+            Enregistrement…{' '}
+            {String(Math.floor(recordingSeconds / 60)).padStart(1, '0')}:
             {String(recordingSeconds % 60).padStart(2, '0')}
           </Text>
           <Pressable onPress={cancelRecording}>
@@ -242,10 +310,15 @@ export function MessageComposer({
         </View>
       ) : null}
 
-      {/* Barre de saisie principale */}
       <View style={styles.inputBar}>
-        <Pressable style={styles.iconBtn} onPress={openPhotoMenu}>
-          <Text style={styles.iconText}>📷</Text>
+        <Pressable
+          style={styles.iconBtn}
+          onPress={openPhotoMenu}
+          disabled={isBusy}
+        >
+          <Text style={[styles.iconText, isBusy && styles.iconTextDisabled]}>
+            📷
+          </Text>
         </Pressable>
         <View style={styles.inputWrap}>
           <TextInput
@@ -257,24 +330,31 @@ export function MessageComposer({
             multiline
             onSubmitEditing={onSendText}
             blurOnSubmit
+            editable={!isBusy}
           />
         </View>
         {draft.trim() ? (
           <Pressable
             style={styles.sendBtn}
             onPress={onSendText}
-            disabled={sendMutation.isPending}
+            disabled={isBusy}
           >
             <Text style={styles.sendText}>→</Text>
           </Pressable>
         ) : (
           <Pressable
-            style={[styles.iconBtn, audioRecorder.isRecording && styles.iconBtnRecording]}
+            style={[
+              styles.iconBtn,
+              audioRecorder.isRecording && styles.iconBtnRecording,
+            ]}
             onLongPress={startRecording}
             onPressOut={stopAndSendRecording}
             delayLongPress={250}
+            disabled={isBusy && !audioRecorder.isRecording}
           >
-            <Text style={styles.iconText}>🎤</Text>
+            <Text style={[styles.iconText, isBusy && !audioRecorder.isRecording && styles.iconTextDisabled]}>
+              🎤
+            </Text>
           </Pressable>
         )}
       </View>
@@ -287,7 +367,7 @@ export function MessageComposer({
       >
         <SafeAreaView style={styles.previewSafe} edges={['top', 'bottom']}>
           <View style={styles.previewHeader}>
-            <Pressable onPress={() => setPreviewPhotoUri(null)}>
+            <Pressable onPress={() => setPreviewPhotoUri(null)} disabled={isUploadingMedia}>
               <Text style={styles.previewCancel}>Annuler</Text>
             </Pressable>
             <Text style={styles.previewTitle}>Aperçu</Text>
@@ -302,11 +382,15 @@ export function MessageComposer({
           ) : null}
           <View style={styles.previewFooter}>
             <Pressable
-              style={styles.previewSendBtn}
+              style={[styles.previewSendBtn, isUploadingMedia && styles.previewSendBtnDisabled]}
               onPress={sendPhoto}
-              disabled={sendMutation.isPending}
+              disabled={isUploadingMedia}
             >
-              <Text style={styles.previewSendText}>Envoyer</Text>
+              {isUploadingMedia ? (
+                <ActivityIndicator color={colors.white} />
+              ) : (
+                <Text style={styles.previewSendText}>Envoyer</Text>
+              )}
             </Pressable>
           </View>
         </SafeAreaView>
@@ -316,6 +400,23 @@ export function MessageComposer({
 }
 
 const styles = StyleSheet.create({
+  uploadBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    backgroundColor: colors.gray50,
+    borderTopWidth: 0.5,
+    borderTopColor: colors.border,
+  },
+  uploadText: {
+    flex: 1,
+    fontSize: 12.5,
+    color: colors.gray700,
+    fontWeight: '500',
+  },
+
   recordingBar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -365,6 +466,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.alert.absent.bg,
   },
   iconText: { fontSize: 19 },
+  iconTextDisabled: { opacity: 0.4 },
   inputWrap: { flex: 1 },
   input: {
     borderRadius: 18,
@@ -408,6 +510,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 22,
     paddingVertical: 10,
     borderRadius: 999,
+    minWidth: 100,
+    alignItems: 'center',
   },
+  previewSendBtnDisabled: { opacity: 0.6 },
   previewSendText: { color: colors.white, fontSize: 15, fontWeight: '700' },
 });

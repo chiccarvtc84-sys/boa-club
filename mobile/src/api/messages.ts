@@ -50,6 +50,22 @@ export const messagesApi = {
       method: 'POST',
       body: { content },
     }),
+  /** Envoi d'une photo (URL R2 déjà uploadée via uploads.ts). */
+  sendPhoto: (convID: string, mediaURL: string) =>
+    apiRequest<MessageDTO>(`/api/conversations/${convID}/messages`, {
+      method: 'POST',
+      body: { type: 'photo', media_url: mediaURL },
+    }),
+  /** Envoi d'une note vocale (URL R2 + durée en secondes). */
+  sendVoice: (convID: string, mediaURL: string, durationSeconds: number) =>
+    apiRequest<MessageDTO>(`/api/conversations/${convID}/messages`, {
+      method: 'POST',
+      body: {
+        type: 'voice',
+        media_url: mediaURL,
+        media_duration_seconds: durationSeconds,
+      },
+    }),
   markRead: (convID: string) =>
     apiRequest<void>(`/api/conversations/${convID}/read`, { method: 'POST' }),
   slotThread: (slotID: string) =>

@@ -12,6 +12,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/boa-club/api/internal/middleware"
+	"github.com/boa-club/api/internal/models"
 	"github.com/boa-club/api/internal/services"
 )
 
@@ -122,8 +123,16 @@ func (h *MessagesHandler) ListMessages(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"messages": out})
 }
 
+// sendMessageRequest accepte 3 formes :
+//
+//   1. Texte pur : { "content": "..." }
+//   2. Photo : { "type": "photo", "media_url": "https://pub-xxx.r2.dev/..." }
+//   3. Note vocale : { "type": "voice", "media_url": "...", "media_duration_seconds": 12 }
 type sendMessageRequest struct {
-	Content string `json:"content" validate:"required,min=1,max=5000"`
+	Content              string `json:"content,omitempty" validate:"omitempty,min=1,max=5000"`
+	Type                 string `json:"type,omitempty" validate:"omitempty,oneof=text photo voice"`
+	MediaURL             string `json:"media_url,omitempty" validate:"omitempty,url,max=1000"`
+	MediaDurationSeconds *int   `json:"media_duration_seconds,omitempty" validate:"omitempty,min=1,max=600"`
 }
 
 // SendMessage : POST /api/conversations/:id/messages
@@ -147,13 +156,32 @@ func (h *MessagesHandler) SendMessage(c *gin.Context) {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "validation_failed", "detail": err.Error()})
 		return
 	}
-	m, err := h.messages.SendText(c.Request.Context(), convID, uid, req.Content)
+
+	// Dispatch selon le type de message demandé.
+	isMedia := (req.Type == "photo" || req.Type == "voice") && req.MediaURL != ""
+	if !isMedia && req.Content == "" {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+			"error":  "empty_message",
+			"detail": "Un message doit avoir un contenu texte ou un media_url.",
+		})
+		return
+	}
+
+	var m *models.Message
+	if isMedia {
+		m, err = h.messages.SendMedia(
+			c.Request.Context(), convID, uid,
+			models.MessageType(req.Type), req.MediaURL, req.MediaDurationSeconds,
+		)
+	} else {
+		m, err = h.messages.SendText(c.Request.Context(), convID, uid, req.Content)
+	}
 	if err != nil {
 		if errors.Is(err, services.ErrNotParticipant) {
 			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "not_participant"})
 			return
 		}
-		h.logger.ErrorContext(c.Request.Context(), "SendText KO", slog.Any("error", err))
+		h.logger.ErrorContext(c.Request.Context(), "SendMessage KO", slog.Any("error", err))
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "internal_error"})
 		return
 	}

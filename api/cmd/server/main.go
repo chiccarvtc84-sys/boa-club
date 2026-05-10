@@ -23,6 +23,7 @@ import (
 	"github.com/boa-club/api/internal/middleware"
 	"github.com/boa-club/api/internal/push"
 	"github.com/boa-club/api/internal/services"
+	"github.com/boa-club/api/internal/storage"
 )
 
 func main() {
@@ -79,6 +80,16 @@ func run() error {
 	jwtMgr := auth.NewManager(cfg.JWTSecret, cfg.JWTAccessTTL, cfg.JWTRefreshTTL)
 	mailer := email.New(cfg.EmailProvider, cfg.EmailAPIKey, cfg.EmailFrom, logger)
 	pushSender := push.New(cfg.FCMCredentialsFile, logger)
+	uploader, err := storage.New(storage.R2Config{
+		AccessKeyID:     cfg.R2.AccessKeyID,
+		SecretAccessKey: cfg.R2.SecretAccessKey,
+		Endpoint:        cfg.R2.Endpoint,
+		Bucket:          cfg.R2.Bucket,
+		PublicURL:       cfg.R2.PublicURL,
+	}, logger)
+	if err != nil {
+		return fmt.Errorf("storage : %w", err)
+	}
 	authSvc := services.NewAuthService(db, jwtMgr, cfg.BcryptCost, mailer, logger)
 	userSvc := services.NewUserService(db)
 	coursesSvc := services.NewCoursesService(db)
@@ -95,6 +106,7 @@ func run() error {
 	slotsH := handlers.NewFreeSlotsHandler(slotsSvc, v, logger)
 	messagesH := handlers.NewMessagesHandler(messagesSvc, slotsSvc, v, logger)
 	adminH := handlers.NewAdminHandler(adminSvc, userSvc, v, logger)
+	uploadsH := handlers.NewUploadsHandler(uploader, logger)
 
 	// 8. Routes
 	api := router.Group("/api")
@@ -124,6 +136,9 @@ func run() error {
 	api.POST("/me/fcm-token", authReq, meH.SetFCMToken)
 	api.DELETE("/me/fcm-token", authReq, meH.ClearFCMToken)
 	api.GET("/courses/week", authReq, coursesH.Week)
+
+	// Upload de fichiers (avatars, photos de messages, notes vocales).
+	api.POST("/uploads", authReq, uploadsH.Upload)
 
 	slotsGroup := api.Group("/free-slots", authReq)
 	{

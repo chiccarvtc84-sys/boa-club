@@ -45,6 +45,20 @@ type Config struct {
 
 	// CORS — liste blanche en prod (vide = tout refusé hors dev).
 	AllowedOrigins []string
+
+	// Cloudflare R2 — stockage des fichiers (avatars, photos, audios).
+	// Si l'un des champs est vide, le serveur démarre en mode mock (les
+	// uploads renvoient 503 mais le reste de l'API fonctionne).
+	R2 R2Config
+}
+
+// R2Config — credentials et coordonnées du bucket Cloudflare R2.
+type R2Config struct {
+	AccessKeyID     string
+	SecretAccessKey string
+	Endpoint        string // ex : https://abc1234.r2.cloudflarestorage.com
+	Bucket          string // ex : boa-club-uploads
+	PublicURL       string // ex : https://pub-xxx.r2.dev
 }
 
 // Load lit le .env si présent, valide les variables requises, et renvoie une Config prête à l'emploi.
@@ -53,16 +67,23 @@ func Load() (*Config, error) {
 	_ = godotenv.Load()
 
 	cfg := &Config{
-		Port:           getEnv("PORT", "8080"),
-		Env:            Env(getEnv("ENV", "development")),
-		DatabaseURL:    os.Getenv("DATABASE_URL"),
-		RedisURL:       os.Getenv("REDIS_URL"),
-		JWTSecret:      os.Getenv("JWT_SECRET"),
-		EmailProvider:  os.Getenv("EMAIL_PROVIDER"),
-		EmailAPIKey:    os.Getenv("EMAIL_API_KEY"),
+		Port:               getEnv("PORT", "8080"),
+		Env:                Env(getEnv("ENV", "development")),
+		DatabaseURL:        os.Getenv("DATABASE_URL"),
+		RedisURL:           os.Getenv("REDIS_URL"),
+		JWTSecret:          os.Getenv("JWT_SECRET"),
+		EmailProvider:      os.Getenv("EMAIL_PROVIDER"),
+		EmailAPIKey:        os.Getenv("EMAIL_API_KEY"),
 		EmailFrom:          getEnv("EMAIL_FROM", "noreply@boaclub.fr"),
 		FCMCredentialsFile: os.Getenv("FCM_CREDENTIALS_FILE"),
 		AllowedOrigins:     parseList(os.Getenv("ALLOWED_ORIGINS")),
+		R2: R2Config{
+			AccessKeyID:     os.Getenv("R2_ACCESS_KEY_ID"),
+			SecretAccessKey: os.Getenv("R2_SECRET_ACCESS_KEY"),
+			Endpoint:        os.Getenv("R2_ENDPOINT"),
+			Bucket:          getEnv("R2_BUCKET", "boa-club-uploads"),
+			PublicURL:       os.Getenv("R2_PUBLIC_URL"),
+		},
 	}
 
 	cfg.LogLevel = parseLogLevel(getEnv("LOG_LEVEL", "info"))

@@ -323,6 +323,66 @@ func (s *MessagesService) SendText(ctx context.Context, convID, userID uuid.UUID
 	return &m, nil
 }
 
+// SendMedia envoie un message photo ou note vocale (avec URL de média
+// déjà uploadée sur R2). `durationSec` est ignoré pour les photos, requis
+// pour les notes vocales.
+func (s *MessagesService) SendMedia(
+	ctx context.Context,
+	convID, userID uuid.UUID,
+	msgType models.MessageType,
+	mediaURL string,
+	durationSec *int,
+) (*models.Message, error) {
+	if err := s.requireParticipant(ctx, convID, userID); err != nil {
+		return nil, err
+	}
+	if msgType != models.MsgPhoto && msgType != models.MsgVoice {
+		return nil, fmt.Errorf("type invalide pour SendMedia : %s", msgType)
+	}
+	if mediaURL == "" {
+		return nil, ErrEmptyMessage
+	}
+
+	var (
+		m       models.Message
+		typeStr string
+		first   string
+		lastN   string
+		beltStr string
+		stripes int
+		av      *string
+		role    string
+	)
+	err := s.db.QueryRow(ctx, `
+		WITH inserted AS (
+			INSERT INTO messages (conversation_id, sender_id, type, media_url, media_duration_seconds)
+			VALUES ($1, $2, $3::message_type, $4, $5)
+			RETURNING id, conversation_id, type::text, content, media_url, media_duration_seconds, created_at
+		)
+		SELECT i.id, i.conversation_id, i.type, i.content, i.media_url, i.media_duration_seconds, i.created_at,
+		       u.first_name, u.last_name_initial, u.belt::text, u.stripes, u.avatar_url, u.role::text
+		FROM inserted i
+		JOIN users u ON u.id = $2
+	`, convID, userID, string(msgType), mediaURL, durationSec).Scan(
+		&m.ID, &m.ConversationID, &typeStr, &m.Content, &m.MediaURL, &m.MediaDurationSeconds, &m.CreatedAt,
+		&first, &lastN, &beltStr, &stripes, &av, &role,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("insert message média : %w", err)
+	}
+	m.Type = models.MessageType(typeStr)
+	m.Sender = &models.UserBrief{
+		ID:              userID,
+		FirstName:       first,
+		LastNameInitial: lastN,
+		Belt:            models.Belt(beltStr),
+		Stripes:         stripes,
+		AvatarURL:       av,
+		IsCoach:         role == "coach" || role == "admin",
+	}
+	return &m, nil
+}
+
 // MarkRead met à jour `last_read_at` du participant à maintenant.
 func (s *MessagesService) MarkRead(ctx context.Context, convID, userID uuid.UUID) error {
 	if err := s.requireParticipant(ctx, convID, userID); err != nil {

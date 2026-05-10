@@ -16,6 +16,7 @@ import { useMutation } from '@tanstack/react-query';
 import * as ImagePicker from 'expo-image-picker';
 
 import { meApi } from '../../api/me';
+import { uploadFile, UploadError } from '../../api/uploads';
 import { Avatar } from '../../components/Avatar';
 import { Button } from '../../components/Button';
 import { useAuthStore } from '../../store/authStore';
@@ -129,23 +130,55 @@ export function EditProfileScreen({ navigation }: EditProfileScreenProps) {
     }
   };
 
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+
   const updateMutation = useMutation({
     mutationFn: meApi.update,
     onSuccess: async (updatedUser) => {
-      /*
-       * On préserve l'URI de la photo choisie côté local : tant que le
-       * backend n'a pas d'endpoint d'upload (POST /api/uploads), l'API
-       * renvoie un user sans avatar_url. On l'écrase manuellement avec
-       * notre URI locale (file://...) pour que l'aperçu reste visible
-       * dans toute l'app pendant la session.
-       */
-      await setUser({ ...updatedUser, avatar_url: avatarUri });
+      await setUser(updatedUser);
       navigation.goBack();
     },
   });
 
-  const onSave = () => {
+  const onSave = async () => {
     const trimmedBio = bio.trim();
+
+    // Si l'utilisateur a choisi une photo locale (file://...), on l'upload
+    // d'abord vers R2 pour récupérer l'URL publique. Si c'est déjà une URL
+    // distante (https://...), on la garde telle quelle. Si c'est null, on
+    // efface l'avatar côté serveur.
+    let avatarUrlToSave: string | null | undefined = avatarUri;
+    const isLocalUri =
+      typeof avatarUri === 'string' &&
+      (avatarUri.startsWith('file://') ||
+        avatarUri.startsWith('content://') ||
+        avatarUri.startsWith('ph://') ||
+        avatarUri.startsWith('assets-library://'));
+
+    if (isLocalUri) {
+      try {
+        setIsUploadingAvatar(true);
+        avatarUrlToSave = await uploadFile(avatarUri!, {
+          prefix: 'avatars',
+        });
+      } catch (err) {
+        setIsUploadingAvatar(false);
+        const detail =
+          err instanceof UploadError
+            ? err.message
+            : 'Upload de la photo impossible.';
+        Alert.alert(
+          'Photo non uploadée',
+          `${detail}\n\nLes autres modifications vont quand même être enregistrées.`,
+        );
+        // On laisse avatarUrlToSave inchangé (= URI locale) — le backend
+        // ignorera probablement (validation URL), mais l'opération continue.
+        avatarUrlToSave = undefined;
+      } finally {
+        setIsUploadingAvatar(false);
+      }
+    }
+
     updateMutation.mutate({
       first_name: firstName.trim() || user.first_name,
       last_name_initial: lastInitial.trim() || user.last_name_initial,
@@ -155,6 +188,9 @@ export function EditProfileScreen({ navigation }: EditProfileScreenProps) {
       ...(weight ? { weight_kg: Number(weight) } : {}),
       weight_visibility: visibility,
       disciplines,
+      // On ne transmet avatar_url QUE s'il a réellement changé OU si l'upload
+      // a réussi. `undefined` = on n'envoie pas le champ (PATCH).
+      ...(avatarUrlToSave !== undefined ? { avatar_url: avatarUrlToSave ?? '' } : {}),
     });
   };
 
@@ -169,8 +205,14 @@ export function EditProfileScreen({ navigation }: EditProfileScreenProps) {
         <View style={{ flex: 1 }}>
           <Text style={styles.title}>Modifier mon profil</Text>
         </View>
-        <Pressable onPress={onSave} style={styles.headerOK}>
-          <Text style={styles.headerOKText}>OK</Text>
+        <Pressable
+          onPress={onSave}
+          style={styles.headerOK}
+          disabled={updateMutation.isPending || isUploadingAvatar}
+        >
+          <Text style={styles.headerOKText}>
+            {isUploadingAvatar ? '…' : 'OK'}
+          </Text>
         </Pressable>
       </View>
 
@@ -341,9 +383,9 @@ export function EditProfileScreen({ navigation }: EditProfileScreenProps) {
             </Text>
           ) : null}
           <Button
-            label="Enregistrer"
+            label={isUploadingAvatar ? 'Upload de la photo…' : 'Enregistrer'}
             onPress={onSave}
-            loading={updateMutation.isPending}
+            loading={updateMutation.isPending || isUploadingAvatar}
             full
             style={{ marginTop: 8 }}
           />
