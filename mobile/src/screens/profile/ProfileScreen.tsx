@@ -1,8 +1,10 @@
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 
 import { authApi } from '../../api/auth';
 import { Avatar } from '../../components/Avatar';
+import { BoaLogo } from '../../components/BoaLogo';
 import { Button } from '../../components/Button';
 import { useAuthStore } from '../../store/authStore';
 import { useNotificationsStore } from '../../store/notificationsStore';
@@ -77,11 +79,23 @@ export function ProfileScreen({ navigation }: ProfileScreenProps) {
       </View>
 
       <ScrollView contentContainerStyle={styles.scroll}>
-        {/* Banner club */}
-        <View style={styles.clubBanner}>
-          <Text style={styles.clubName}>Clube Desportivo Boa</Text>
-          <Text style={styles.clubLoc}>Sorgues · Vedène · Membre actif</Text>
-        </View>
+        {/*
+          Tâche 6 : bandeau club avec dégradé (noir → rouge sombre → rouge Bōa)
+          inspiré du logo officiel du club. Logo intégré à gauche, texte en
+          blanc pour le contraste.
+        */}
+        <LinearGradient
+          colors={['#0A0A0A', '#1a1a1a', '#7A1818', '#DC2626']}
+          start={{ x: 0, y: 0.5 }}
+          end={{ x: 1, y: 0.5 }}
+          style={styles.clubBanner}
+        >
+          <BoaLogo size={42} />
+          <View style={styles.clubBannerText}>
+            <Text style={styles.clubName}>Clube Desportivo Boa</Text>
+            <Text style={styles.clubLoc}>Sorgues · Vedène · Membre actif</Text>
+          </View>
+        </LinearGradient>
 
         {/* Hero */}
         <View style={styles.hero}>
@@ -192,13 +206,32 @@ const styles = StyleSheet.create({
   subtitle: { fontSize: 11, color: colors.gray500, marginTop: 1 },
   scroll: { padding: 14 },
   clubBanner: {
-    backgroundColor: colors.black,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
     padding: 14,
-    borderRadius: 10,
-    marginBottom: 12,
+    borderRadius: 12,
+    marginBottom: 14,
+    // Légère ombre pour donner de la profondeur au bandeau dégradé.
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  clubName: { fontSize: 14, fontWeight: '700', color: colors.white },
-  clubLoc: { fontSize: 11, color: colors.gray300, marginTop: 2 },
+  clubBannerText: { flex: 1, minWidth: 0 },
+  clubName: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: colors.white,
+    letterSpacing: 0.3,
+  },
+  clubLoc: {
+    fontSize: 11.5,
+    color: 'rgba(255,255,255,0.85)',
+    marginTop: 3,
+    letterSpacing: 0.2,
+  },
   hero: { flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 14 },
   heroText: { flex: 1 },
   userName: { fontSize: 17, fontWeight: '600', color: colors.black },

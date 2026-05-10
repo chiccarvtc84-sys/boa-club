@@ -24,17 +24,18 @@ const STYLES: Record<Discipline, { bg: string; fg: string; border?: string; labe
   mixed: { bg: colors.gray100, fg: colors.black, label: 'Mixte' },
 };
 
+// Tâche 5 : badges légèrement plus grands pour la lisibilité dans Planning.
 const styles = StyleSheet.create({
   pill: {
     alignSelf: 'flex-start',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
+    paddingHorizontal: 11,
+    paddingVertical: 4,
     borderRadius: 999,
   },
   text: {
-    fontSize: 10,
-    fontWeight: '600',
-    letterSpacing: 0.2,
+    fontSize: 11.5,
+    fontWeight: '700',
+    letterSpacing: 0.3,
     textTransform: 'uppercase',
   },
 });

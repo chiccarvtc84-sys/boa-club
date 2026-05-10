@@ -26,11 +26,16 @@ export function CourseCard({ course, notificationOn }: CourseCardProps) {
             <Badge discipline={course.discipline} />
           </View>
         </View>
-        <View style={styles.bell}>
-          <Text style={[styles.bellIcon, notificationOn && styles.bellIconOn]}>
-            🔔
-          </Text>
-        </View>
+        {/*
+          Tâche 3 : la cloche n'est rendue que si l'utilisateur a activé les
+          notifications pour ce cours. Quand `notificationOn` est false, on ne
+          rend RIEN — pas de cloche grisée, pas d'espace réservé.
+        */}
+        {notificationOn ? (
+          <View style={styles.bell}>
+            <Text style={styles.bellIconOn}>🔔</Text>
+          </View>
+        ) : null}
       </View>
       {course.alert ? (
         <View
@@ -55,64 +60,62 @@ export function CourseCard({ course, notificationOn }: CourseCardProps) {
   );
 }
 
+// Tâche 5 : tailles augmentées légèrement pour améliorer la lisibilité,
+// sans casser l'allure compacte des cartes (cf. cahier des charges).
 const styles = StyleSheet.create({
   card: {
     backgroundColor: colors.white,
     borderWidth: 0.5,
     borderColor: colors.border,
-    borderRadius: 10,
-    padding: 12,
-    marginBottom: 8,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
   },
   row: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    gap: 10,
+    gap: 12,
   },
   body: { flex: 1, minWidth: 0 },
   time: {
-    fontSize: 11,
-    color: colors.gray600,
-    fontWeight: '600',
-    letterSpacing: 0.3,
+    fontSize: 13,
+    color: colors.gray700,
+    fontWeight: '700',
+    letterSpacing: 0.4,
   },
   name: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 16,
+    fontWeight: '700',
     color: colors.black,
-    marginTop: 2,
+    marginTop: 4,
   },
   coach: {
-    fontSize: 12,
+    fontSize: 13,
     color: colors.gray600,
-    marginTop: 3,
+    marginTop: 4,
   },
   location: {
-    fontSize: 11,
+    fontSize: 12.5,
     color: colors.gray500,
-    marginTop: 2,
+    marginTop: 3,
     fontStyle: 'italic',
   },
   metaRow: {
     flexDirection: 'row',
-    gap: 4,
-    marginTop: 6,
+    gap: 6,
+    marginTop: 9,
     flexWrap: 'wrap',
   },
   bell: { paddingTop: 2 },
-  bellIcon: {
-    fontSize: 16,
-    color: colors.gray400,
-    opacity: 0.5,
-  },
   bellIconOn: {
+    fontSize: 20,
     color: colors.primary,
     opacity: 1,
   },
   alertBox: {
-    marginTop: 8,
-    padding: 8,
+    marginTop: 10,
+    padding: 10,
     borderRadius: 8,
     borderLeftWidth: 3,
   },
@@ -125,8 +128,8 @@ const styles = StyleSheet.create({
     borderLeftColor: colors.alert.absent.border,
   },
   alertText: {
-    fontSize: 11.5,
+    fontSize: 12.5,
     fontWeight: '500',
-    lineHeight: 16,
+    lineHeight: 17,
   },
 });

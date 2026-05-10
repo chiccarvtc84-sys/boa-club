@@ -52,6 +52,19 @@
         {
           "color": "#DC2626"
         }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Pour partager des photos dans les messages.",
+          "cameraPermission": "Pour envoyer des photos dans les messages."
+        }
+      ],
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "Pour envoyer des notes vocales dans les messages."
+        }
       ]
     ],
     "extra": {

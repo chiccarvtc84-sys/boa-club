@@ -23,7 +23,6 @@ interface AdminBroadcastScreenProps {
   navigation: ProfileStackNavigation<'AdminBroadcast'>;
 }
 
-const COACH_NAMES = ['Victor', 'Vincent', 'Nassim', 'Samuel'];
 const DURATIONS = [
   { hours: 1, label: '1 h' },
   { hours: 6, label: '6 h' },
@@ -34,11 +33,13 @@ const DURATIONS = [
 
 export function AdminBroadcastScreen({ navigation }: AdminBroadcastScreenProps) {
   const user = useAuthStore((s) => s.user);
-  const defaultName = COACH_NAMES.includes(user?.first_name ?? '')
-    ? user!.first_name
-    : 'Victor';
 
-  const [author, setAuthor] = useState(defaultName);
+  // Le nom de l'expéditeur est figé sur le compte connecté : pas de choix
+  // possible, pour assurer la traçabilité (cf. cahier des charges).
+  const senderName = user
+    ? `${user.first_name} ${user.last_name_initial}`.trim()
+    : '';
+
   const [message, setMessage] = useState('');
   const [durationHours, setDurationHours] = useState(24);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -66,7 +67,7 @@ export function AdminBroadcastScreen({ navigation }: AdminBroadcastScreenProps) 
       return;
     }
     sendMutation.mutate({
-      display_name: author,
+      display_name: senderName,
       message: message.trim(),
       duration_hours: durationHours,
     });
@@ -97,18 +98,11 @@ export function AdminBroadcastScreen({ navigation }: AdminBroadcastScreenProps) 
           </View>
 
           <Text style={styles.label}>De la part de</Text>
-          <View style={styles.pillsRow}>
-            {COACH_NAMES.map((n) => (
-              <Pressable
-                key={n}
-                style={[styles.pill, author === n && styles.pillSelected]}
-                onPress={() => setAuthor(n)}
-              >
-                <Text style={[styles.pillText, author === n && styles.pillTextSelected]}>
-                  {n}
-                </Text>
-              </Pressable>
-            ))}
+          <View style={styles.senderBox}>
+            <Text style={styles.senderName}>{senderName || '—'}</Text>
+            <Text style={styles.senderHint}>
+              Ton compte connecté · non modifiable
+            </Text>
           </View>
 
           <Text style={styles.label}>Message</Text>
@@ -225,6 +219,18 @@ const styles = StyleSheet.create({
   pillSelected: { backgroundColor: colors.black, borderColor: colors.black },
   pillText: { fontSize: 11.5, color: colors.black, fontWeight: '500' },
   pillTextSelected: { color: colors.white, fontWeight: '600' },
+
+  // Bloc lecture seule pour l'expéditeur (lié au compte connecté).
+  senderBox: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 8,
+    borderWidth: 0.5,
+    borderColor: colors.border,
+    backgroundColor: colors.gray50,
+  },
+  senderName: { fontSize: 14, fontWeight: '700', color: colors.black },
+  senderHint: { fontSize: 11, color: colors.gray500, marginTop: 2 },
 
   errorText: {
     fontSize: 12,
