@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -8,7 +8,6 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -18,6 +17,7 @@ import { freeSlotsApi, type UserBriefDTO } from '../../api/freeSlots';
 import { messagesApi, type MessageDTO } from '../../api/messages';
 import { Avatar } from '../../components/Avatar';
 import { Button } from '../../components/Button';
+import { MessageComposer } from '../../components/MessageComposer';
 import { useAuthStore } from '../../store/authStore';
 import { colors } from '../../theme/colors';
 import type { Belt } from '../../types/models';
@@ -50,7 +50,6 @@ export function SlotDetailScreen({ navigation, route }: SlotDetailScreenProps) {
   const slotId = route.params.slotId;
   const currentUser = useAuthStore((s) => s.user);
   const queryClient = useQueryClient();
-  const [draft, setDraft] = useState('');
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['freeSlots', slotId],
@@ -91,13 +90,6 @@ export function SlotDetailScreen({ navigation, route }: SlotDetailScreenProps) {
     refetchInterval: 5000,
   });
 
-  const sendMutation = useMutation({
-    mutationFn: (content: string) => messagesApi.send(conversationId!, content),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['slotMessages', conversationId] });
-    },
-  });
-
   // Mark-read auto à l'ouverture quand on a une conv.
   useEffect(() => {
     if (conversationId) {
@@ -128,13 +120,6 @@ export function SlotDetailScreen({ navigation, route }: SlotDetailScreenProps) {
         },
       ],
     );
-  };
-
-  const onSend = () => {
-    const text = draft.trim();
-    if (!text || !conversationId) return;
-    sendMutation.mutate(text);
-    setDraft('');
   };
 
   // Trie les messages chronologiquement pour les afficher dans l'ordre lecture.
@@ -257,36 +242,20 @@ export function SlotDetailScreen({ navigation, route }: SlotDetailScreenProps) {
           )}
         </ScrollView>
 
-        {/* Barre de saisie sticky bottom (visible si on est inscrit) */}
+        {/*
+          Barre de saisie sticky bottom (visible si on est inscrit).
+          Le composant MessageComposer gère photo + voix + texte.
+        */}
         {isJoined && conversationId ? (
-          <View style={styles.inputBar}>
-            <Pressable style={styles.iconBtn}>
-              <Text style={styles.iconText}>📷</Text>
-            </Pressable>
-            <View style={styles.inputWrap}>
-              <TextInput
-                style={styles.input}
-                value={draft}
-                onChangeText={setDraft}
-                placeholder="Écrire dans la discussion…"
-                placeholderTextColor={colors.gray400}
-                multiline
-              />
-            </View>
-            {draft.trim() ? (
-              <Pressable
-                style={styles.sendBtn}
-                onPress={onSend}
-                disabled={sendMutation.isPending}
-              >
-                <Text style={styles.sendText}>→</Text>
-              </Pressable>
-            ) : (
-              <Pressable style={styles.iconBtn}>
-                <Text style={styles.iconText}>🎤</Text>
-              </Pressable>
-            )}
-          </View>
+          <MessageComposer
+            conversationId={conversationId}
+            placeholder="Écrire dans la discussion…"
+            onSent={() => {
+              queryClient.invalidateQueries({
+                queryKey: ['slotMessages', conversationId],
+              });
+            }}
+          />
         ) : null}
       </KeyboardAvoidingView>
     </SafeAreaView>

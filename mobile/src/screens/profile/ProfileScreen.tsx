@@ -86,6 +86,9 @@ export function ProfileScreen({ navigation }: ProfileScreenProps) {
         */}
         <LinearGradient
           colors={['#0A0A0A', '#1a1a1a', '#7A1818', '#DC2626']}
+          // `locations` resserrent la zone rouge sur la droite : la majorité
+          // du bandeau reste noire, le rouge n'apparaît que sur ~12% à droite.
+          locations={[0, 0.6, 0.92, 1]}
           start={{ x: 0, y: 0.5 }}
           end={{ x: 1, y: 0.5 }}
           style={styles.clubBanner}
