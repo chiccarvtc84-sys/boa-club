@@ -41,12 +41,22 @@ type ConversationSummary struct {
 
 // Message : un message dans une conversation.
 type Message struct {
-	ID                   uuid.UUID   `json:"id"`
-	ConversationID       uuid.UUID   `json:"conversation_id"`
-	Sender               *UserBrief  `json:"sender,omitempty"` // nil pour 'system'
-	Type                 MessageType `json:"type"`
-	Content              *string     `json:"content,omitempty"`
-	MediaURL             *string     `json:"media_url,omitempty"`
-	MediaDurationSeconds *int        `json:"media_duration_seconds,omitempty"`
-	CreatedAt            time.Time   `json:"created_at"`
+	ID                   uuid.UUID         `json:"id"`
+	ConversationID       uuid.UUID         `json:"conversation_id"`
+	Sender               *UserBrief        `json:"sender,omitempty"` // nil pour 'system'
+	Type                 MessageType       `json:"type"`
+	Content              *string           `json:"content,omitempty"`
+	MediaURL             *string           `json:"media_url,omitempty"`
+	MediaDurationSeconds *int              `json:"media_duration_seconds,omitempty"`
+	CreatedAt            time.Time         `json:"created_at"`
+	Reactions            []MessageReaction `json:"reactions,omitempty"`
+}
+
+// MessageReaction : agrégat d'une réaction emoji sur un message.
+// Pour l'emoji "❤️" on a Count=3 si 3 utilisateurs l'ont posé,
+// HasMine=true si l'utilisateur courant fait partie de ces 3.
+type MessageReaction struct {
+	Emoji   string `json:"emoji"`
+	Count   int    `json:"count"`
+	HasMine bool   `json:"has_mine"`
 }

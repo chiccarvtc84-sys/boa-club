@@ -141,6 +141,20 @@ export function AdminDashboardScreen({ navigation }: AdminDashboardScreenProps) 
           <Text style={styles.kvArrow}>›</Text>
         </Pressable>
 
+        {/* Réservé aux admins (le service vérifie le rôle au runtime). */}
+        {user?.role === 'admin' ? (
+          <>
+            <Text style={styles.sectionHeader}>Membres</Text>
+            <Pressable
+              style={styles.kvRow}
+              onPress={() => navigation.navigate('AdminUsers')}
+            >
+              <Text style={styles.kvLabel}>Gérer les comptes adhérents</Text>
+              <Text style={styles.kvArrow}>›</Text>
+            </Pressable>
+          </>
+        ) : null}
+
         <Text style={styles.note}>
           Connecté en tant que {user?.first_name} {user?.last_name_initial}{' '}
           ({user?.role})

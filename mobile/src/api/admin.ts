@@ -44,6 +44,27 @@ export interface CoachDTO {
   is_coach: boolean;
 }
 
+/** Fiche membre dans le dashboard admin (plus complet que UserBriefDTO). */
+export interface AdminUserSummaryDTO {
+  id: string;
+  email: string;
+  first_name: string;
+  last_name_initial: string;
+  belt: string;
+  stripes: number;
+  avatar_url?: string | null;
+  role: 'member' | 'coach' | 'admin';
+  status: 'pending' | 'active' | 'suspended' | 'deleted';
+  created_at: string;
+  last_login_at?: string | null;
+}
+
+export interface AdminListUsersFilters {
+  q?: string;       // recherche partielle email + prénom
+  role?: 'member' | 'coach' | 'admin';
+  status?: 'pending' | 'active' | 'suspended';
+}
+
 export const adminApi = {
   createBroadcast: (payload: CreateBroadcastPayload) =>
     apiRequest<BroadcastDTO>('/api/admin/broadcasts', { method: 'POST', body: payload }),
@@ -55,6 +76,24 @@ export const adminApi = {
     apiRequest<void>(`/api/admin/courses/${courseId}`, { method: 'PATCH', body: payload }),
   listCoaches: () =>
     apiRequest<{ coaches: CoachDTO[] }>('/api/admin/coaches'),
+
+  // ─── Gestion des membres (admins uniquement) ───────────────
+  listUsers: (filters: AdminListUsersFilters = {}) => {
+    const qs = new URLSearchParams();
+    if (filters.q) qs.set('q', filters.q);
+    if (filters.role) qs.set('role', filters.role);
+    if (filters.status) qs.set('status', filters.status);
+    const path = qs.toString() ? `/api/admin/users?${qs.toString()}` : '/api/admin/users';
+    return apiRequest<{ users: AdminUserSummaryDTO[] }>(path);
+  },
+  updateUser: (
+    userID: string,
+    payload: { role?: 'member' | 'coach' | 'admin'; status?: 'pending' | 'active' | 'suspended' },
+  ) =>
+    apiRequest<AdminUserSummaryDTO>(`/api/admin/users/${userID}`, {
+      method: 'PATCH',
+      body: payload,
+    }),
 };
 
 export const broadcastsApi = {

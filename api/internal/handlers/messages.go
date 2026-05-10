@@ -258,3 +258,176 @@ func (h *MessagesHandler) SlotThread(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, gin.H{"conversation_id": convID, "slot_id": slotID})
 }
+
+// ─── Mute / Unmute ──────────────────────────────────────────────
+
+type muteRequest struct {
+	// Date ISO-8601 jusqu'à laquelle on coupe les notifs.
+	// Pour un mute "indéfini", envoyer "9999-12-31T23:59:59Z".
+	// Pour unmute, envoyer null ou ne pas envoyer le champ.
+	Until *time.Time `json:"until,omitempty"`
+}
+
+// MuteConversation : POST /api/conversations/:id/mute
+func (h *MessagesHandler) MuteConversation(c *gin.Context) {
+	uid, ok := middleware.UserIDFromContext(c)
+	if !ok {
+		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "missing_auth_context"})
+		return
+	}
+	convID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "invalid_id"})
+		return
+	}
+	var req muteRequest
+	// Body optionnel : si vide ou JSON invalide, on prend until=null = unmute.
+	_ = c.ShouldBindJSON(&req)
+
+	if err := h.messages.SetMute(c.Request.Context(), convID, uid, req.Until); err != nil {
+		if errors.Is(err, services.ErrNotParticipant) {
+			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "not_participant"})
+			return
+		}
+		h.logger.ErrorContext(c.Request.Context(), "SetMute KO", slog.Any("error", err))
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "internal_error"})
+		return
+	}
+	c.Status(http.StatusNoContent)
+}
+
+// UnmuteConversation : DELETE /api/conversations/:id/mute
+func (h *MessagesHandler) UnmuteConversation(c *gin.Context) {
+	uid, ok := middleware.UserIDFromContext(c)
+	if !ok {
+		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "missing_auth_context"})
+		return
+	}
+	convID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "invalid_id"})
+		return
+	}
+	if err := h.messages.SetMute(c.Request.Context(), convID, uid, nil); err != nil {
+		if errors.Is(err, services.ErrNotParticipant) {
+			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "not_participant"})
+			return
+		}
+		h.logger.ErrorContext(c.Request.Context(), "Unmute KO", slog.Any("error", err))
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "internal_error"})
+		return
+	}
+	c.Status(http.StatusNoContent)
+}
+
+// ─── Réactions emoji ────────────────────────────────────────────
+
+type reactionRequest struct {
+	Emoji string `json:"emoji" validate:"required,min=1,max=16"`
+}
+
+// AddReaction : POST /api/conversations/:id/messages/:msgID/reactions
+func (h *MessagesHandler) AddReaction(c *gin.Context) {
+	uid, ok := middleware.UserIDFromContext(c)
+	if !ok {
+		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "missing_auth_context"})
+		return
+	}
+	convID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "invalid_conv_id"})
+		return
+	}
+	msgID, err := uuid.Parse(c.Param("msgID"))
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "invalid_msg_id"})
+		return
+	}
+	var req reactionRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "invalid_json"})
+		return
+	}
+	if err := h.validator.Struct(req); err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "validation_failed"})
+		return
+	}
+	if err := h.messages.AddReaction(c.Request.Context(), convID, msgID, uid, req.Emoji); err != nil {
+		switch {
+		case errors.Is(err, services.ErrNotParticipant):
+			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "not_participant"})
+		case errors.Is(err, services.ErrConversationNotFound):
+			c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": "message_not_found"})
+		default:
+			h.logger.ErrorContext(c.Request.Context(), "AddReaction KO", slog.Any("error", err))
+			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "internal_error"})
+		}
+		return
+	}
+	c.Status(http.StatusNoContent)
+}
+
+// RemoveReaction : DELETE /api/conversations/:id/messages/:msgID/reactions?emoji=X
+func (h *MessagesHandler) RemoveReaction(c *gin.Context) {
+	uid, ok := middleware.UserIDFromContext(c)
+	if !ok {
+		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "missing_auth_context"})
+		return
+	}
+	convID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "invalid_conv_id"})
+		return
+	}
+	msgID, err := uuid.Parse(c.Param("msgID"))
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "invalid_msg_id"})
+		return
+	}
+	emoji := c.Query("emoji")
+	if emoji == "" {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "missing_emoji"})
+		return
+	}
+	if err := h.messages.RemoveReaction(c.Request.Context(), convID, msgID, uid, emoji); err != nil {
+		if errors.Is(err, services.ErrNotParticipant) {
+			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "not_participant"})
+			return
+		}
+		h.logger.ErrorContext(c.Request.Context(), "RemoveReaction KO", slog.Any("error", err))
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "internal_error"})
+		return
+	}
+	c.Status(http.StatusNoContent)
+}
+
+// ─── Recherche FTS ──────────────────────────────────────────────
+
+// SearchMessages : GET /api/messages/search?q=...
+func (h *MessagesHandler) SearchMessages(c *gin.Context) {
+	uid, ok := middleware.UserIDFromContext(c)
+	if !ok {
+		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "missing_auth_context"})
+		return
+	}
+	q := c.Query("q")
+	limitStr := c.Query("limit")
+	limit := 30
+	if limitStr != "" {
+		if v, err := strconv.Atoi(limitStr); err == nil && v > 0 && v <= 100 {
+			limit = v
+		}
+	}
+	hits, err := h.messages.SearchMessages(c.Request.Context(), uid, q, limit)
+	if err != nil {
+		h.logger.ErrorContext(c.Request.Context(), "SearchMessages KO", slog.Any("error", err))
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "internal_error"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"hits": hits})
+}
+
+// Compile-time assertion : models package est utilisé via le type retour des
+// services, mais le handler n'y fait pas référence directe. On garde l'import
+// pour que le linter ne se plaigne pas si on simplifie un jour.
+var _ = models.MsgText

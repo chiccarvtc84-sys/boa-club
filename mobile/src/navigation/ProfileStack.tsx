@@ -6,6 +6,7 @@ import { AdminDashboardScreen } from '../screens/profile/AdminDashboardScreen';
 import { AdminEditCourseScreen } from '../screens/profile/AdminEditCourseScreen';
 import { AdminNotifyScreen } from '../screens/profile/AdminNotifyScreen';
 import { AdminPlanningScreen } from '../screens/profile/AdminPlanningScreen';
+import { AdminUsersScreen } from '../screens/profile/AdminUsersScreen';
 import { DeleteAccountScreen } from '../screens/profile/DeleteAccountScreen';
 import { EditProfileScreen } from '../screens/profile/EditProfileScreen';
 import { NotificationsSettingsScreen } from '../screens/profile/NotificationsSettingsScreen';
@@ -28,6 +29,7 @@ export type ProfileStackParamList = {
   };
   AdminEditCourse: { courseId: string; courseName: string };
   AdminPlanning: undefined;
+  AdminUsers: undefined;
 };
 
 export type ProfileStackNavigation<T extends keyof ProfileStackParamList> =
@@ -53,6 +55,7 @@ export function ProfileStack() {
       <Stack.Screen name="AdminNotify" component={AdminNotifyScreen} />
       <Stack.Screen name="AdminEditCourse" component={AdminEditCourseScreen} />
       <Stack.Screen name="AdminPlanning" component={AdminPlanningScreen} />
+      <Stack.Screen name="AdminUsers" component={AdminUsersScreen} />
     </Stack.Navigator>
   );
 }

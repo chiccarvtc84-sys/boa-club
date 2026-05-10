@@ -26,6 +26,20 @@ export interface MessageDTO {
   media_url?: string;
   media_duration_seconds?: number;
   created_at: string;
+  reactions?: MessageReactionDTO[];
+}
+
+export interface MessageReactionDTO {
+  emoji: string;
+  count: number;
+  has_mine: boolean;
+}
+
+export interface MessageSearchHitDTO {
+  message: MessageDTO;
+  conversation_title?: string;
+  conversation_type: 'direct' | 'slot_thread';
+  other?: UserBriefDTO;
 }
 
 export const messagesApi = {
@@ -72,4 +86,34 @@ export const messagesApi = {
     apiRequest<{ conversation_id: string; slot_id: string }>(
       `/api/free-slots/${slotID}/thread`,
     ),
+
+  // ─── Mute / Unmute ───────────────────────────────────────────
+  /** Mute jusqu'à une date donnée (ISO). Pour mute "indéfini", envoyer 9999-12-31T23:59:59Z. */
+  mute: (convID: string, until: string) =>
+    apiRequest<void>(`/api/conversations/${convID}/mute`, {
+      method: 'POST',
+      body: { until },
+    }),
+  unmute: (convID: string) =>
+    apiRequest<void>(`/api/conversations/${convID}/mute`, { method: 'DELETE' }),
+
+  // ─── Réactions emoji ─────────────────────────────────────────
+  addReaction: (convID: string, msgID: string, emoji: string) =>
+    apiRequest<void>(`/api/conversations/${convID}/messages/${msgID}/reactions`, {
+      method: 'POST',
+      body: { emoji },
+    }),
+  removeReaction: (convID: string, msgID: string, emoji: string) =>
+    apiRequest<void>(
+      `/api/conversations/${convID}/messages/${msgID}/reactions?emoji=${encodeURIComponent(emoji)}`,
+      { method: 'DELETE' },
+    ),
+
+  // ─── Recherche FTS ───────────────────────────────────────────
+  search: (query: string, limit = 30) => {
+    const qs = new URLSearchParams({ q: query, limit: String(limit) });
+    return apiRequest<{ hits: MessageSearchHitDTO[] }>(
+      `/api/messages/search?${qs.toString()}`,
+    );
+  },
 };

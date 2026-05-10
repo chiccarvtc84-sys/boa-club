@@ -17,9 +17,12 @@ import (
 
 // Erreurs métier de AdminService.
 var (
-	ErrNotAdminOrCoach   = errors.New("réservé aux coachs et admins")
-	ErrBroadcastNotFound = errors.New("alerte introuvable")
-	ErrCourseNotFound    = errors.New("cours introuvable")
+	ErrNotAdminOrCoach    = errors.New("réservé aux coachs et admins")
+	ErrNotAdmin           = errors.New("réservé aux admins")
+	ErrBroadcastNotFound  = errors.New("alerte introuvable")
+	ErrCourseNotFound     = errors.New("cours introuvable")
+	ErrTargetUserNotFound = errors.New("utilisateur cible introuvable")
+	ErrCannotSelfDemote   = errors.New("impossible de modifier ton propre rôle / statut")
 )
 
 // AdminService regroupe les opérations réservées aux rôles coach + admin.
@@ -451,4 +454,187 @@ func (s *AdminService) ListCoaches(ctx context.Context) ([]models.UserBrief, err
 		out = append(out, u)
 	}
 	return out, rows.Err()
+}
+
+// ─── Gestion des membres (réservée aux admins) ──────────────────
+
+// AdminUserSummary : ligne de la liste membres dans le dashboard admin.
+// Plus complet que UserBrief : inclut email, statut, rôle, dates clés.
+type AdminUserSummary struct {
+	ID              uuid.UUID  `json:"id"`
+	Email           string     `json:"email"`
+	FirstName       string     `json:"first_name"`
+	LastNameInitial string     `json:"last_name_initial"`
+	Belt            string     `json:"belt"`
+	Stripes         int        `json:"stripes"`
+	AvatarURL       *string    `json:"avatar_url,omitempty"`
+	Role            string     `json:"role"`   // member|coach|admin
+	Status          string     `json:"status"` // pending|active|suspended|deleted
+	CreatedAt       time.Time  `json:"created_at"`
+	LastLoginAt     *time.Time `json:"last_login_at,omitempty"`
+}
+
+// AdminListUsersFilters : filtres pour la liste membres.
+type AdminListUsersFilters struct {
+	Query  string // recherche partielle dans email + first_name
+	Role   string // filtre par rôle (vide = tous)
+	Status string // filtre par statut (vide = actifs uniquement)
+}
+
+// AdminListUsers liste les membres pour le dashboard admin. Vérifie que
+// `actorID` est bien admin avant de retourner quoi que ce soit.
+func (s *AdminService) AdminListUsers(
+	ctx context.Context,
+	actorID uuid.UUID,
+	f AdminListUsersFilters,
+) ([]AdminUserSummary, error) {
+	if err := s.requireAdmin(ctx, actorID); err != nil {
+		return nil, err
+	}
+
+	// Construction dynamique de la WHERE clause selon les filtres.
+	args := []any{}
+	conds := []string{"deleted_at IS NULL"}
+
+	if f.Query != "" {
+		args = append(args, "%"+f.Query+"%")
+		conds = append(conds,
+			fmt.Sprintf("(email ILIKE $%d OR first_name ILIKE $%d)", len(args), len(args)),
+		)
+	}
+	if f.Role != "" {
+		args = append(args, f.Role)
+		conds = append(conds, fmt.Sprintf("role::text = $%d", len(args)))
+	}
+	if f.Status != "" {
+		args = append(args, f.Status)
+		conds = append(conds, fmt.Sprintf("status::text = $%d", len(args)))
+	}
+
+	where := ""
+	if len(conds) > 0 {
+		where = "WHERE "
+		for i, c := range conds {
+			if i > 0 {
+				where += " AND "
+			}
+			where += c
+		}
+	}
+
+	q := `
+		SELECT id, email, first_name, last_name_initial, belt::text, stripes, avatar_url,
+		       role::text, status::text, created_at, last_login_at
+		FROM users
+		` + where + `
+		ORDER BY created_at DESC
+		LIMIT 200
+	`
+	rows, err := s.db.Query(ctx, q, args...)
+	if err != nil {
+		return nil, fmt.Errorf("query admin users : %w", err)
+	}
+	defer rows.Close()
+
+	out := []AdminUserSummary{}
+	for rows.Next() {
+		var u AdminUserSummary
+		if err := rows.Scan(
+			&u.ID, &u.Email, &u.FirstName, &u.LastNameInitial,
+			&u.Belt, &u.Stripes, &u.AvatarURL,
+			&u.Role, &u.Status, &u.CreatedAt, &u.LastLoginAt,
+		); err != nil {
+			return nil, err
+		}
+		out = append(out, u)
+	}
+	return out, rows.Err()
+}
+
+// AdminUpdateUser : modifie le rôle et/ou le statut d'un user.
+// Seul un admin peut le faire. Un admin ne peut pas modifier son propre rôle
+// (évite de se rétrograder par mégarde et de bloquer le club sans admin).
+func (s *AdminService) AdminUpdateUser(
+	ctx context.Context,
+	actorID, targetID uuid.UUID,
+	newRole, newStatus *string,
+) (*AdminUserSummary, error) {
+	if err := s.requireAdmin(ctx, actorID); err != nil {
+		return nil, err
+	}
+	if actorID == targetID {
+		return nil, ErrCannotSelfDemote
+	}
+
+	// Validation des valeurs autorisées.
+	if newRole != nil {
+		switch models.Role(*newRole) {
+		case models.RoleMember, models.RoleCoach, models.RoleAdmin:
+		default:
+			return nil, fmt.Errorf("rôle invalide : %s", *newRole)
+		}
+	}
+	if newStatus != nil {
+		switch models.Status(*newStatus) {
+		case models.StatusPending, models.StatusActive, models.StatusSuspended:
+			// On interdit explicitement de mettre à 'deleted' via cette route :
+			// la suppression doit passer par DELETE /api/me (RGPD).
+		default:
+			return nil, fmt.Errorf("statut invalide : %s", *newStatus)
+		}
+	}
+
+	// UPDATE conditionnel : on ne touche que les colonnes spécifiées.
+	q := "UPDATE users SET updated_at = NOW()"
+	args := []any{}
+	if newRole != nil {
+		args = append(args, *newRole)
+		q += fmt.Sprintf(", role = $%d::user_role", len(args))
+	}
+	if newStatus != nil {
+		args = append(args, *newStatus)
+		q += fmt.Sprintf(", status = $%d::user_status", len(args))
+	}
+	args = append(args, targetID)
+	q += fmt.Sprintf(" WHERE id = $%d AND deleted_at IS NULL RETURNING id", len(args))
+
+	var updatedID uuid.UUID
+	err := s.db.QueryRow(ctx, q, args...).Scan(&updatedID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrTargetUserNotFound
+		}
+		return nil, fmt.Errorf("update user : %w", err)
+	}
+
+	// Re-query pour renvoyer la fiche complète.
+	rows, err := s.AdminListUsers(ctx, actorID, AdminListUsersFilters{})
+	if err != nil {
+		return nil, err
+	}
+	for _, u := range rows {
+		if u.ID == updatedID {
+			return &u, nil
+		}
+	}
+	return nil, ErrTargetUserNotFound
+}
+
+// requireAdmin vérifie que le user actorID a le rôle admin.
+func (s *AdminService) requireAdmin(ctx context.Context, actorID uuid.UUID) error {
+	var role string
+	err := s.db.QueryRow(ctx,
+		`SELECT role::text FROM users WHERE id = $1 AND deleted_at IS NULL`,
+		actorID,
+	).Scan(&role)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ErrNotAdmin
+		}
+		return err
+	}
+	if role != string(models.RoleAdmin) {
+		return ErrNotAdmin
+	}
+	return nil
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -270,6 +271,236 @@ func (s *MessagesService) ListMessages(ctx context.Context, convID, userID uuid.
 			}
 		}
 		out = append(out, m)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	// Enrichit chaque message avec ses réactions emoji agrégées.
+	if err := s.attachReactions(ctx, out, userID); err != nil {
+		return nil, fmt.Errorf("attach reactions : %w", err)
+	}
+	return out, nil
+}
+
+// attachReactions remplit le champ Reactions de chaque message en un seul
+// roundtrip SQL (group by emoji avec un BOOL_OR pour HasMine).
+func (s *MessagesService) attachReactions(
+	ctx context.Context,
+	msgs []models.Message,
+	userID uuid.UUID,
+) error {
+	if len(msgs) == 0 {
+		return nil
+	}
+	ids := make([]uuid.UUID, len(msgs))
+	for i, m := range msgs {
+		ids[i] = m.ID
+	}
+
+	rows, err := s.db.Query(ctx, `
+		SELECT message_id, emoji, COUNT(*)::int, BOOL_OR(user_id = $2)
+		FROM message_reactions
+		WHERE message_id = ANY($1)
+		GROUP BY message_id, emoji
+		ORDER BY message_id, emoji
+	`, ids, userID)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	// Index msgID -> []reactions
+	byMsg := make(map[uuid.UUID][]models.MessageReaction, len(msgs))
+	for rows.Next() {
+		var (
+			msgID   uuid.UUID
+			emoji   string
+			count   int
+			hasMine bool
+		)
+		if err := rows.Scan(&msgID, &emoji, &count, &hasMine); err != nil {
+			return err
+		}
+		byMsg[msgID] = append(byMsg[msgID], models.MessageReaction{
+			Emoji:   emoji,
+			Count:   count,
+			HasMine: hasMine,
+		})
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+
+	for i := range msgs {
+		if r, ok := byMsg[msgs[i].ID]; ok {
+			msgs[i].Reactions = r
+		}
+	}
+	return nil
+}
+
+// AddReaction pose une réaction emoji sur un message.
+// Idempotent : si l'utilisateur a déjà cette réaction, ne rien faire.
+func (s *MessagesService) AddReaction(
+	ctx context.Context,
+	convID, msgID, userID uuid.UUID,
+	emoji string,
+) error {
+	if err := s.requireParticipant(ctx, convID, userID); err != nil {
+		return err
+	}
+	if emoji == "" || len(emoji) > 16 {
+		return fmt.Errorf("emoji invalide")
+	}
+	// Vérifie que le message appartient bien à la conversation, sinon
+	// un attaquant pourrait poser une réaction sur un message d'une conv
+	// dont il n'est pas membre.
+	var convCheck uuid.UUID
+	err := s.db.QueryRow(ctx,
+		`SELECT conversation_id FROM messages WHERE id = $1 AND deleted_at IS NULL`,
+		msgID,
+	).Scan(&convCheck)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ErrConversationNotFound
+		}
+		return err
+	}
+	if convCheck != convID {
+		return ErrNotParticipant
+	}
+
+	_, err = s.db.Exec(ctx, `
+		INSERT INTO message_reactions (message_id, user_id, emoji)
+		VALUES ($1, $2, $3)
+		ON CONFLICT DO NOTHING
+	`, msgID, userID, emoji)
+	return err
+}
+
+// RemoveReaction retire une réaction posée par l'utilisateur courant.
+// No-op si la réaction n'existe pas.
+func (s *MessagesService) RemoveReaction(
+	ctx context.Context,
+	convID, msgID, userID uuid.UUID,
+	emoji string,
+) error {
+	if err := s.requireParticipant(ctx, convID, userID); err != nil {
+		return err
+	}
+	_, err := s.db.Exec(ctx, `
+		DELETE FROM message_reactions
+		WHERE message_id = $1 AND user_id = $2 AND emoji = $3
+	`, msgID, userID, emoji)
+	return err
+}
+
+// SetMute définit le `muted_until` du participant. `until` nil = unmute.
+// Pour un mute "indéfini" depuis le mobile, on passe une date très loin
+// dans le futur (ex: 9999-12-31).
+func (s *MessagesService) SetMute(
+	ctx context.Context,
+	convID, userID uuid.UUID,
+	until *time.Time,
+) error {
+	if err := s.requireParticipant(ctx, convID, userID); err != nil {
+		return err
+	}
+	_, err := s.db.Exec(ctx, `
+		UPDATE conversation_participants
+		SET muted_until = $3
+		WHERE conversation_id = $1 AND user_id = $2
+	`, convID, userID, until)
+	return err
+}
+
+// MessageSearchHit : un message trouvé via la recherche FTS, avec son
+// contexte de conversation (pour pouvoir naviguer dessus).
+type MessageSearchHit struct {
+	Message            models.Message `json:"message"`
+	ConversationTitle  *string        `json:"conversation_title,omitempty"`
+	ConversationType   string         `json:"conversation_type"`
+	OtherParticipant   *models.UserBrief `json:"other,omitempty"`
+}
+
+// SearchMessages cherche dans toutes les conversations dont l'utilisateur
+// est participant, en utilisant l'index FTS français de la migration 012.
+func (s *MessagesService) SearchMessages(
+	ctx context.Context,
+	userID uuid.UUID,
+	query string,
+	limit int,
+) ([]MessageSearchHit, error) {
+	query = strings.TrimSpace(query)
+	if query == "" {
+		return []MessageSearchHit{}, nil
+	}
+	if limit <= 0 || limit > 100 {
+		limit = 30
+	}
+
+	rows, err := s.db.Query(ctx, `
+		SELECT
+			m.id, m.conversation_id, m.type::text, m.content, m.media_url,
+			m.media_duration_seconds, m.created_at,
+			u.id, u.first_name, u.last_name_initial, u.belt::text, u.stripes, u.avatar_url, u.role::text,
+			c.type::text,
+			fs.title
+		FROM messages m
+		JOIN conversations c ON c.id = m.conversation_id
+		JOIN conversation_participants cp ON cp.conversation_id = c.id AND cp.user_id = $1
+		LEFT JOIN users u ON u.id = m.sender_id
+		LEFT JOIN free_slots fs ON fs.id = c.slot_id
+		WHERE m.deleted_at IS NULL
+		  AND m.content IS NOT NULL
+		  AND to_tsvector('french', COALESCE(m.content, '')) @@ plainto_tsquery('french', $2)
+		ORDER BY m.created_at DESC
+		LIMIT $3
+	`, userID, query, limit)
+	if err != nil {
+		return nil, fmt.Errorf("search messages : %w", err)
+	}
+	defer rows.Close()
+
+	out := []MessageSearchHit{}
+	for rows.Next() {
+		var (
+			m            models.Message
+			msgType      string
+			senderID     *uuid.UUID
+			senderFirst  *string
+			senderLast   *string
+			senderBelt   *string
+			senderStrp   *int
+			senderAv     *string
+			senderRole   *string
+			convType     string
+			slotTitle    *string
+		)
+		if err := rows.Scan(
+			&m.ID, &m.ConversationID, &msgType, &m.Content, &m.MediaURL, &m.MediaDurationSeconds, &m.CreatedAt,
+			&senderID, &senderFirst, &senderLast, &senderBelt, &senderStrp, &senderAv, &senderRole,
+			&convType, &slotTitle,
+		); err != nil {
+			return nil, fmt.Errorf("scan search hit : %w", err)
+		}
+		m.Type = models.MessageType(msgType)
+		if senderID != nil && senderFirst != nil {
+			m.Sender = &models.UserBrief{
+				ID:              *senderID,
+				FirstName:       *senderFirst,
+				LastNameInitial: deref(senderLast),
+				Belt:            models.Belt(deref(senderBelt)),
+				Stripes:         derefInt(senderStrp),
+				AvatarURL:       senderAv,
+				IsCoach:         senderRole != nil && (*senderRole == "coach" || *senderRole == "admin"),
+			}
+		}
+		out = append(out, MessageSearchHit{
+			Message:           m,
+			ConversationTitle: slotTitle,
+			ConversationType:  convType,
+		})
 	}
 	return out, rows.Err()
 }

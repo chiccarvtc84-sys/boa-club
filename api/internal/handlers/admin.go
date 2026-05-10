@@ -261,14 +261,80 @@ func (h *AdminHandler) handleAdminError(c *gin.Context, err error) {
 	switch {
 	case errors.Is(err, services.ErrNotAdminOrCoach):
 		c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "not_admin_or_coach"})
+	case errors.Is(err, services.ErrNotAdmin):
+		c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "not_admin"})
 	case errors.Is(err, services.ErrBroadcastNotFound):
 		c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": "broadcast_not_found"})
 	case errors.Is(err, services.ErrCourseNotFound):
 		c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": "course_not_found"})
 	case errors.Is(err, services.ErrUserNotFound):
 		c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": "user_not_found"})
+	case errors.Is(err, services.ErrTargetUserNotFound):
+		c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": "target_user_not_found"})
+	case errors.Is(err, services.ErrCannotSelfDemote):
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "cannot_modify_self"})
 	default:
 		h.logger.ErrorContext(c.Request.Context(), "admin error", slog.Any("error", err))
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "internal_error"})
 	}
+}
+
+// ─── Gestion des membres (admins uniquement) ────────────────────
+
+// AdminListUsers : GET /api/admin/users?q=...&role=...&status=...
+func (h *AdminHandler) AdminListUsers(c *gin.Context) {
+	uid, ok := middleware.UserIDFromContext(c)
+	if !ok {
+		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "missing_auth_context"})
+		return
+	}
+	users, err := h.admin.AdminListUsers(c.Request.Context(), uid, services.AdminListUsersFilters{
+		Query:  c.Query("q"),
+		Role:   c.Query("role"),
+		Status: c.Query("status"),
+	})
+	if err != nil {
+		h.handleAdminError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"users": users})
+}
+
+type adminUpdateUserRequest struct {
+	Role   *string `json:"role,omitempty"   validate:"omitempty,oneof=member coach admin"`
+	Status *string `json:"status,omitempty" validate:"omitempty,oneof=pending active suspended"`
+}
+
+// AdminUpdateUser : PATCH /api/admin/users/:id (rôle et/ou statut)
+func (h *AdminHandler) AdminUpdateUser(c *gin.Context) {
+	uid, ok := middleware.UserIDFromContext(c)
+	if !ok {
+		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "missing_auth_context"})
+		return
+	}
+	targetID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "invalid_id"})
+		return
+	}
+	var req adminUpdateUserRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "invalid_json", "detail": err.Error()})
+		return
+	}
+	if err := h.validator.Struct(req); err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "validation_failed", "detail": err.Error()})
+		return
+	}
+	if req.Role == nil && req.Status == nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "nothing_to_update"})
+		return
+	}
+
+	updated, err := h.admin.AdminUpdateUser(c.Request.Context(), uid, targetID, req.Role, req.Status)
+	if err != nil {
+		h.handleAdminError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, updated)
 }

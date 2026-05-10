@@ -1,15 +1,21 @@
+import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
 
-import { messagesApi, type ConversationSummaryDTO } from '../../api/messages';
+import {
+  messagesApi,
+  type ConversationSummaryDTO,
+  type MessageSearchHitDTO,
+} from '../../api/messages';
 import { Avatar } from '../../components/Avatar';
 import { colors } from '../../theme/colors';
 import type { MessagesStackNavigation } from '../../navigation/MessagesStack';
@@ -24,22 +30,83 @@ export function ConversationsListScreen({ navigation }: ConversationsListScreenP
     queryFn: () => messagesApi.listDMs(),
   });
 
+  // ── Recherche FTS ──────────────────────────────────────────────
+  // On debounce pour ne pas spammer l'API à chaque touche.
+  const [searchInput, setSearchInput] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(searchInput.trim()), 250);
+    return () => clearTimeout(t);
+  }, [searchInput]);
+
+  const searchQuery = useQuery({
+    queryKey: ['searchMessages', debouncedSearch],
+    queryFn: () => messagesApi.search(debouncedSearch, 30),
+    enabled: debouncedSearch.length >= 2,
+  });
+
   const conversations = data?.conversations ?? [];
   const unreadTotal = conversations.reduce((sum, c) => sum + c.unread_count, 0);
+  const isSearching = debouncedSearch.length >= 2;
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <View style={styles.header}>
-        <View>
-          <Text style={styles.title}>Messages privés</Text>
-          <Text style={styles.subtitle}>
-            {unreadTotal === 0 ? 'Toutes lues' : `${unreadTotal} non lu${unreadTotal > 1 ? 's' : ''}`}
-          </Text>
-        </View>
+        <Text style={styles.title}>Messages privés</Text>
+        <Text style={styles.subtitle}>
+          {unreadTotal === 0 ? 'Toutes lues' : `${unreadTotal} non lu${unreadTotal > 1 ? 's' : ''}`}
+        </Text>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scroll}>
-        {isLoading ? (
+      {/* Barre de recherche */}
+      <View style={styles.searchBar}>
+        <Text style={styles.searchIcon}>🔍</Text>
+        <TextInput
+          style={styles.searchInput}
+          value={searchInput}
+          onChangeText={setSearchInput}
+          placeholder="Rechercher dans tes messages…"
+          placeholderTextColor={colors.gray400}
+          returnKeyType="search"
+          autoCapitalize="none"
+          autoCorrect={false}
+        />
+        {searchInput ? (
+          <Pressable onPress={() => setSearchInput('')}>
+            <Text style={styles.searchClear}>✕</Text>
+          </Pressable>
+        ) : null}
+      </View>
+
+      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+        {isSearching ? (
+          // ── Mode recherche ──
+          searchQuery.isLoading ? (
+            <View style={styles.center}>
+              <ActivityIndicator color={colors.primary} />
+            </View>
+          ) : (searchQuery.data?.hits ?? []).length === 0 ? (
+            <View style={styles.empty}>
+              <Text style={styles.emptyIcon}>🔍</Text>
+              <Text style={styles.emptyText}>Aucun message trouvé pour « {debouncedSearch} ».</Text>
+            </View>
+          ) : (
+            (searchQuery.data?.hits ?? []).map((hit) => (
+              <SearchHitRow
+                key={hit.message.id}
+                hit={hit}
+                query={debouncedSearch}
+                onPress={() =>
+                  navigation.navigate('Conversation', {
+                    conversationId: hit.message.conversation_id,
+                    title: hit.conversation_title ?? undefined,
+                  })
+                }
+              />
+            ))
+          )
+        ) : isLoading ? (
+          // ── Mode liste normale ──
           <View style={styles.center}>
             <ActivityIndicator color={colors.primary} />
           </View>
@@ -73,6 +140,57 @@ export function ConversationsListScreen({ navigation }: ConversationsListScreenP
   );
 }
 
+interface SearchHitRowProps {
+  hit: MessageSearchHitDTO;
+  query: string;
+  onPress: () => void;
+}
+
+function SearchHitRow({ hit, query, onPress }: SearchHitRowProps) {
+  const m = hit.message;
+  const sender = m.sender
+    ? `${m.sender.first_name} ${m.sender.last_name_initial}`
+    : 'Système';
+  const ctx =
+    hit.conversation_type === 'slot_thread' && hit.conversation_title
+      ? `Créneau · ${hit.conversation_title}`
+      : 'DM';
+  const preview = m.content ?? '—';
+  return (
+    <Pressable style={styles.row} onPress={onPress}>
+      <Avatar
+        initials={
+          m.sender
+            ? m.sender.first_name[0] + (m.sender.last_name_initial[0] ?? '')
+            : '?'
+        }
+        color={3}
+        size={40}
+        imageUri={m.sender?.avatar_url ?? null}
+      />
+      <View style={styles.rowBody}>
+        <Text style={styles.name} numberOfLines={1}>
+          {sender}
+        </Text>
+        <Text style={styles.preview} numberOfLines={2}>
+          {highlightMatch(preview, query)}
+        </Text>
+      </View>
+      <Text style={styles.searchCtx} numberOfLines={2}>
+        {ctx}
+      </Text>
+    </Pressable>
+  );
+}
+
+/**
+ * Helper basique qui retourne le texte tel quel (le highlight visuel
+ * nécessiterait un Text imbriqué + parsing — overkill pour V1).
+ */
+function highlightMatch(text: string, _query: string): string {
+  return text;
+}
+
 interface ConvRowProps {
   conv: ConversationSummaryDTO;
   onPress: () => void;
@@ -91,7 +209,12 @@ function ConvRow({ conv, onPress }: ConvRowProps) {
 
   return (
     <Pressable style={styles.row} onPress={onPress}>
-      <Avatar initials={initials} color={2} size={40} />
+      <Avatar
+        initials={initials}
+        color={2}
+        size={40}
+        imageUri={other?.avatar_url ?? null}
+      />
       <View style={styles.rowBody}>
         <Text style={[styles.name, isUnread && styles.nameUnread]} numberOfLines={1}>
           {other ? `${other.first_name} ${other.last_name_initial}` : 'Conversation'}
@@ -138,6 +261,31 @@ const styles = StyleSheet.create({
   },
   title: { fontSize: 16, fontWeight: '600', color: colors.black },
   subtitle: { fontSize: 11, color: colors.gray500, marginTop: 1 },
+
+  // Barre de recherche FTS.
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderBottomWidth: 0.5,
+    borderBottomColor: colors.border,
+    backgroundColor: colors.gray50,
+  },
+  searchIcon: { fontSize: 14, opacity: 0.6 },
+  searchInput: {
+    flex: 1,
+    fontSize: 13.5,
+    color: colors.black,
+    paddingVertical: 4,
+  },
+  searchClear: {
+    fontSize: 16,
+    color: colors.gray500,
+    paddingHorizontal: 4,
+  },
+
   scroll: { paddingBottom: 24 },
   center: { paddingVertical: 50, alignItems: 'center' },
   errorText: {
@@ -170,5 +318,14 @@ const styles = StyleSheet.create({
     height: 9,
     borderRadius: 999,
     backgroundColor: colors.primary,
+  },
+
+  // Recherche : contexte de la conv (DM / Créneau).
+  searchCtx: {
+    fontSize: 10,
+    color: colors.gray400,
+    fontStyle: 'italic',
+    maxWidth: 80,
+    textAlign: 'right',
   },
 });

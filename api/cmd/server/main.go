@@ -158,7 +158,16 @@ func run() error {
 		convGroup.GET("/:id/messages", messagesH.ListMessages)
 		convGroup.POST("/:id/messages", messagesH.SendMessage)
 		convGroup.POST("/:id/read", messagesH.MarkRead)
+		// Mute / Unmute des notifs.
+		convGroup.POST("/:id/mute", messagesH.MuteConversation)
+		convGroup.DELETE("/:id/mute", messagesH.UnmuteConversation)
+		// Réactions emoji sur un message.
+		convGroup.POST("/:id/messages/:msgID/reactions", messagesH.AddReaction)
+		convGroup.DELETE("/:id/messages/:msgID/reactions", messagesH.RemoveReaction)
 	}
+
+	// Recherche FTS dans toutes les conversations dont l'user est participant.
+	api.GET("/messages/search", authReq, messagesH.SearchMessages)
 
 	// Broadcasts visibles par tous les adhérents.
 	api.GET("/broadcasts/active", authReq, adminH.ListActiveBroadcasts)
@@ -172,6 +181,9 @@ func run() error {
 		adminGroup.POST("/courses/:id/notify", adminH.NotifyCourse)
 		adminGroup.PATCH("/courses/:id", adminH.UpdateCourse)
 		adminGroup.GET("/coaches", adminH.ListCoaches)
+		// Gestion des membres (admins uniquement, contrôle dans le service).
+		adminGroup.GET("/users", adminH.AdminListUsers)
+		adminGroup.PATCH("/users/:id", adminH.AdminUpdateUser)
 	}
 
 	// 9. Démarrage HTTP + graceful shutdown
