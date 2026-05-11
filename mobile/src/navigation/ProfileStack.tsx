@@ -9,6 +9,9 @@ import { AdminPlanningScreen } from '../screens/profile/AdminPlanningScreen';
 import { AdminUsersScreen } from '../screens/profile/AdminUsersScreen';
 import { DeleteAccountScreen } from '../screens/profile/DeleteAccountScreen';
 import { EditProfileScreen } from '../screens/profile/EditProfileScreen';
+import { FriendsScreen } from '../screens/profile/FriendsScreen';
+import { MemberDetailScreen } from '../screens/profile/MemberDetailScreen';
+import { MembersSearchScreen } from '../screens/profile/MembersSearchScreen';
 import { NotificationsSettingsScreen } from '../screens/profile/NotificationsSettingsScreen';
 import { ProfileScreen } from '../screens/profile/ProfileScreen';
 import { WeightVisibilityScreen } from '../screens/profile/WeightVisibilityScreen';
@@ -30,6 +33,9 @@ export type ProfileStackParamList = {
   AdminEditCourse: { courseId: string; courseName: string };
   AdminPlanning: undefined;
   AdminUsers: undefined;
+  Friends: undefined;
+  MembersSearch: undefined;
+  MemberDetail: { userId: string };
 };
 
 export type ProfileStackNavigation<T extends keyof ProfileStackParamList> =
@@ -56,6 +62,9 @@ export function ProfileStack() {
       <Stack.Screen name="AdminEditCourse" component={AdminEditCourseScreen} />
       <Stack.Screen name="AdminPlanning" component={AdminPlanningScreen} />
       <Stack.Screen name="AdminUsers" component={AdminUsersScreen} />
+      <Stack.Screen name="Friends" component={FriendsScreen} />
+      <Stack.Screen name="MembersSearch" component={MembersSearchScreen} />
+      <Stack.Screen name="MemberDetail" component={MemberDetailScreen} />
     </Stack.Navigator>
   );
 }

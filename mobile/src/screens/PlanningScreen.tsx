@@ -1,5 +1,13 @@
-import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  ActivityIndicator,
+  Animated,
+  PanResponder,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
@@ -22,6 +30,7 @@ import {
   dateToDayOfWeek,
   formatLongDate,
   getMonthDays,
+  isSameLocalDay,
   isSameMonth,
 } from '../utils/dates';
 
@@ -189,6 +198,75 @@ export function PlanningScreen() {
     [courses, selectedDow],
   );
 
+  /*
+   * Swipe horizontal sur le contenu de la journée.
+   *
+   * On utilise des refs pour exposer la dernière valeur de selectedDate +
+   * monthDays aux callbacks du PanResponder (qui est créé une seule fois et
+   * sinon capturerait des valeurs périmées via closure).
+   *
+   * Animated.Value `translateX` donne le retour visuel pendant le drag, et
+   * un spring le ramène à 0 au release (le contenu suit le doigt et revient).
+   *
+   * Pour ne pas bloquer le scroll vertical de la liste de cours :
+   *   - onMoveShouldSetPanResponder s'active UNIQUEMENT si dx > 18 ET
+   *     |dx| > |dy| × 2 (mouvement clairement horizontal).
+   */
+  const selectedDateRef = useRef(selectedDate);
+  const monthDaysRef = useRef(monthDays);
+  useEffect(() => {
+    selectedDateRef.current = selectedDate;
+    monthDaysRef.current = monthDays;
+  }, [selectedDate, monthDays]);
+
+  const translateX = useRef(new Animated.Value(0)).current;
+
+  const goToPrevDay = () => {
+    const days = monthDaysRef.current;
+    const current = selectedDateRef.current;
+    const idx = days.findIndex((d) => isSameLocalDay(d, current));
+    if (idx > 0) setSelectedDate(days[idx - 1]);
+  };
+
+  const goToNextDay = () => {
+    const days = monthDaysRef.current;
+    const current = selectedDateRef.current;
+    const idx = days.findIndex((d) => isSameLocalDay(d, current));
+    if (idx >= 0 && idx < days.length - 1) setSelectedDate(days[idx + 1]);
+  };
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => false,
+      onMoveShouldSetPanResponder: (_, g) =>
+        Math.abs(g.dx) > 18 && Math.abs(g.dx) > Math.abs(g.dy) * 2,
+      onPanResponderMove: (_, g) => {
+        // Limite l'amplitude pour ne pas avoir un effet "élastique" trop fort.
+        const clamped = Math.max(-80, Math.min(80, g.dx));
+        translateX.setValue(clamped);
+      },
+      onPanResponderRelease: (_, g) => {
+        const threshold = 60;
+        if (g.dx < -threshold) {
+          goToNextDay();
+        } else if (g.dx > threshold) {
+          goToPrevDay();
+        }
+        Animated.spring(translateX, {
+          toValue: 0,
+          useNativeDriver: true,
+          bounciness: 8,
+        }).start();
+      },
+      onPanResponderTerminate: () => {
+        Animated.spring(translateX, {
+          toValue: 0,
+          useNativeDriver: true,
+        }).start();
+      },
+    }),
+  ).current;
+
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <View style={styles.header}>
@@ -225,34 +303,46 @@ export function PlanningScreen() {
         </Text>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scroll}>
-        {isLoading ? (
-          <View style={styles.loading}>
-            <ActivityIndicator color={colors.primary} />
-          </View>
-        ) : error ? (
-          <View style={styles.empty}>
-            <Text style={styles.emptyIcon}>⚠</Text>
-            <Text style={styles.emptyText}>
-              Impossible de charger le planning. Vérifie ta connexion.
-            </Text>
-          </View>
-        ) : coursesOfDay.length === 0 ? (
-          <View style={styles.empty}>
-            <Text style={styles.emptyIcon}>○</Text>
-            <Text style={styles.emptyText}>Aucun cours ce jour.</Text>
-          </View>
-        ) : (
-          coursesOfDay.map((c) => (
-            <CourseCard
-              key={c.id}
-              course={c}
-              notificationOn={followedCourseKeys.has(c.courseKey)}
-            />
-          ))
-        )}
-        <Text style={styles.dayFooter}>{formatLongDate(selectedDate)}</Text>
-      </ScrollView>
+      {/*
+        Wrapper Animated qui suit le doigt pendant le swipe horizontal puis
+        revient à 0 (spring) au relâchement. Le PanResponder s'active
+        uniquement sur les mouvements clairement horizontaux pour ne pas
+        casser le scroll vertical de la liste interne.
+      */}
+      <Animated.View
+        style={[styles.swipeContainer, { transform: [{ translateX }] }]}
+        {...panResponder.panHandlers}
+      >
+        <ScrollView contentContainerStyle={styles.scroll}>
+          {isLoading ? (
+            <View style={styles.loading}>
+              <ActivityIndicator color={colors.primary} />
+            </View>
+          ) : error ? (
+            <View style={styles.empty}>
+              <Text style={styles.emptyIcon}>⚠</Text>
+              <Text style={styles.emptyText}>
+                Impossible de charger le planning. Vérifie ta connexion.
+              </Text>
+            </View>
+          ) : coursesOfDay.length === 0 ? (
+            <View style={styles.empty}>
+              <Text style={styles.emptyIcon}>○</Text>
+              <Text style={styles.emptyText}>Aucun cours ce jour.</Text>
+            </View>
+          ) : (
+            coursesOfDay.map((c) => (
+              <CourseCard
+                key={c.id}
+                course={c}
+                notificationOn={followedCourseKeys.has(c.courseKey)}
+              />
+            ))
+          )}
+          <Text style={styles.dayFooter}>{formatLongDate(selectedDate)}</Text>
+          <Text style={styles.swipeHint}>← Swipe pour changer de jour →</Text>
+        </ScrollView>
+      </Animated.View>
     </SafeAreaView>
   );
 }
@@ -291,7 +381,17 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
   },
   legendText: { fontSize: 10.5, color: colors.gray500 },
+  swipeContainer: { flex: 1 },
   scroll: { padding: 14, paddingTop: 14 },
+  swipeHint: {
+    fontSize: 10.5,
+    color: colors.gray400,
+    textAlign: 'center',
+    marginTop: 6,
+    marginBottom: 4,
+    fontStyle: 'italic',
+    opacity: 0.7,
+  },
   loading: { paddingVertical: 50, alignItems: 'center' },
   empty: { alignItems: 'center', paddingVertical: 50 },
   emptyIcon: {

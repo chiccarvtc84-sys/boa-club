@@ -151,6 +151,30 @@ export function ProfileScreen({ navigation }: ProfileScreenProps) {
           </View>
         </View>
 
+        <Text style={styles.sectionTitle}>Communauté</Text>
+
+        <Pressable
+          style={styles.kvRow}
+          onPress={() => navigation.navigate('Friends')}
+        >
+          <Text style={styles.kvLabel}>Mes amis</Text>
+          <View style={styles.kvValue}>
+            <Text style={styles.kvValueText}>👥</Text>
+            <Text style={styles.kvArrow}>›</Text>
+          </View>
+        </Pressable>
+
+        <Pressable
+          style={styles.kvRow}
+          onPress={() => navigation.navigate('MembersSearch')}
+        >
+          <Text style={styles.kvLabel}>Rechercher un membre</Text>
+          <View style={styles.kvValue}>
+            <Text style={styles.kvValueText}>🔍</Text>
+            <Text style={styles.kvArrow}>›</Text>
+          </View>
+        </Pressable>
+
         <Text style={styles.sectionTitle}>Réglages</Text>
 
         <Pressable

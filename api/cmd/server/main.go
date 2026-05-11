@@ -96,6 +96,7 @@ func run() error {
 	slotsSvc := services.NewSlotsService(db)
 	messagesSvc := services.NewMessagesService(db)
 	adminSvc := services.NewAdminService(db, pushSender, logger)
+	friendsSvc := services.NewFriendsService(db)
 	v := validator.New(validator.WithRequiredStructEnabled())
 
 	// 7. Handlers
@@ -107,6 +108,8 @@ func run() error {
 	messagesH := handlers.NewMessagesHandler(messagesSvc, slotsSvc, v, logger)
 	adminH := handlers.NewAdminHandler(adminSvc, userSvc, v, logger)
 	uploadsH := handlers.NewUploadsHandler(uploader, logger)
+	usersH := handlers.NewUsersHandler(userSvc, logger)
+	friendsH := handlers.NewFriendsHandler(friendsSvc, v, logger)
 
 	// 8. Routes
 	api := router.Group("/api")
@@ -139,6 +142,19 @@ func run() error {
 
 	// Upload de fichiers (avatars, photos de messages, notes vocales).
 	api.POST("/uploads", authReq, uploadsH.Upload)
+
+	// Recherche + fiche publique d'autres membres.
+	api.GET("/users/search", authReq, usersH.SearchUsers)
+	api.GET("/users/:id", authReq, usersH.GetPublicProfile)
+
+	// Système d'amis.
+	friendsGroup := api.Group("/friends", authReq)
+	{
+		friendsGroup.GET("", friendsH.List)
+		friendsGroup.POST("", friendsH.Add)
+		friendsGroup.DELETE("/:id", friendsH.Remove)
+		friendsGroup.PATCH("/:id/notifications", friendsH.SetNotifications)
+	}
 
 	slotsGroup := api.Group("/free-slots", authReq)
 	{

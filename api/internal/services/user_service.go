@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -326,4 +328,122 @@ func (s *UserService) UpdateProfile(ctx context.Context, id uuid.UUID, p UpdateP
 		}
 	}
 	return &u, nil
+}
+
+// ─── Recherche + fiche publique d'un autre membre ───────────────
+
+// UserSearchResult : fiche minimale renvoyée par la recherche (pas d'email,
+// pas d'infos sensibles).
+type UserSearchResult struct {
+	ID              uuid.UUID `json:"id"`
+	FirstName       string    `json:"first_name"`
+	LastNameInitial string    `json:"last_name_initial"`
+	AvatarURL       *string   `json:"avatar_url,omitempty"`
+	Belt            string    `json:"belt"`
+	Stripes         int       `json:"stripes"`
+	Role            string    `json:"role"`
+}
+
+// SearchUsers cherche par prénom (ILIKE) parmi les comptes actifs.
+// Ne révèle PAS l'email (privacy). On exclut les comptes supprimés/suspendus
+// et l'utilisateur courant (pas besoin de se trouver soi-même).
+func (s *UserService) SearchUsers(
+	ctx context.Context,
+	viewerID uuid.UUID,
+	query string,
+	limit int,
+) ([]UserSearchResult, error) {
+	query = strings.TrimSpace(query)
+	if limit <= 0 || limit > 100 {
+		limit = 30
+	}
+
+	q := `
+		SELECT id, first_name, last_name_initial, avatar_url, belt::text, stripes, role::text
+		FROM users
+		WHERE deleted_at IS NULL
+		  AND status = 'active'
+		  AND id != $1
+		  AND ($2 = '' OR first_name ILIKE $3 OR last_name_initial ILIKE $3)
+		ORDER BY first_name, last_name_initial
+		LIMIT $4
+	`
+
+	rows, err := s.db.Query(ctx, q, viewerID, query, "%"+query+"%", limit)
+	if err != nil {
+		return nil, fmt.Errorf("search users : %w", err)
+	}
+	defer rows.Close()
+
+	out := []UserSearchResult{}
+	for rows.Next() {
+		var u UserSearchResult
+		if err := rows.Scan(
+			&u.ID, &u.FirstName, &u.LastNameInitial, &u.AvatarURL,
+			&u.Belt, &u.Stripes, &u.Role,
+		); err != nil {
+			return nil, err
+		}
+		out = append(out, u)
+	}
+	return out, rows.Err()
+}
+
+// PublicProfile : fiche d'un membre vue par un autre membre.
+// Email JAMAIS exposé. Poids exposé selon la weight_visibility.
+type PublicProfile struct {
+	ID              uuid.UUID  `json:"id"`
+	FirstName       string     `json:"first_name"`
+	LastNameInitial string     `json:"last_name_initial"`
+	AvatarURL       *string    `json:"avatar_url,omitempty"`
+	Bio             *string    `json:"bio,omitempty"`
+	Belt            string     `json:"belt"`
+	Stripes         int        `json:"stripes"`
+	WeightKg        *float64   `json:"weight_kg,omitempty"`
+	Disciplines     []string   `json:"disciplines"`
+	Role            string     `json:"role"`
+	JoinedAt        time.Time  `json:"joined_at"`
+	LastLoginAt     *time.Time `json:"last_login_at,omitempty"`
+}
+
+// GetPublicProfile renvoie la fiche d'un autre membre, sanitizée selon les
+// règles de visibilité (notamment le poids).
+//
+// - weight "private"  → masqué pour tout le monde sauf le propriétaire
+// - weight "members"  → visible pour tout adhérent connecté
+// - weight "public"   → visible aussi
+func (s *UserService) GetPublicProfile(
+	ctx context.Context,
+	viewerID, targetID uuid.UUID,
+) (*PublicProfile, error) {
+	var (
+		p         PublicProfile
+		weight    *float64
+		weightVis string
+	)
+	err := s.db.QueryRow(ctx, `
+		SELECT id, first_name, last_name_initial, avatar_url, bio,
+		       belt::text, stripes, weight_kg, weight_visibility::text,
+		       disciplines, role::text, created_at, last_login_at
+		FROM users
+		WHERE id = $1 AND deleted_at IS NULL
+	`, targetID).Scan(
+		&p.ID, &p.FirstName, &p.LastNameInitial, &p.AvatarURL, &p.Bio,
+		&p.Belt, &p.Stripes, &weight, &weightVis,
+		&p.Disciplines, &p.Role, &p.JoinedAt, &p.LastLoginAt,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrUserNotFound
+		}
+		return nil, fmt.Errorf("get public profile : %w", err)
+	}
+
+	if viewerID != targetID && weightVis == "private" {
+		p.WeightKg = nil
+	} else {
+		p.WeightKg = weight
+	}
+
+	return &p, nil
 }
