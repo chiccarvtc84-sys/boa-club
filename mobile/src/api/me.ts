@@ -12,6 +12,7 @@ export interface UpdateMeParams {
   weight_visibility?: WeightVisibility;
   disciplines?: string[];
   avatar_url?: string;
+  allow_photo_zoom?: boolean;
 }
 
 export const meApi = {

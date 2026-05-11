@@ -19,7 +19,9 @@ import {
   type MessageDTO,
   type MessageReactionDTO,
 } from '../../api/messages';
+import { ImageZoomModal } from '../../components/ImageZoomModal';
 import { MessageComposer } from '../../components/MessageComposer';
+import { MessageContent } from '../../components/MessageContent';
 import { useAuthStore } from '../../store/authStore';
 import { colors } from '../../theme/colors';
 import type {
@@ -52,6 +54,9 @@ export function ConversationScreen({ navigation, route }: ConversationScreenProp
 
   // État de la modale d'emoji picker : null = fermée, sinon ID du message ciblé.
   const [reactionPickerForMsgId, setReactionPickerForMsgId] = useState<string | null>(null);
+
+  // Zoom photo plein écran (déclenché par tap sur une bulle photo).
+  const [zoomedImageUri, setZoomedImageUri] = useState<string | null>(null);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['messages', conversationId],
@@ -163,6 +168,7 @@ export function ConversationScreen({ navigation, route }: ConversationScreenProp
                 onTapReaction={(emoji, hasMine) =>
                   toggleReaction(item.id, emoji, hasMine)
                 }
+                onImagePress={(uri) => setZoomedImageUri(uri)}
               />
             )}
           />
@@ -177,6 +183,13 @@ export function ConversationScreen({ navigation, route }: ConversationScreenProp
           }}
         />
       </KeyboardAvoidingView>
+
+      {/* Zoom photo plein écran */}
+      <ImageZoomModal
+        visible={!!zoomedImageUri}
+        uri={zoomedImageUri}
+        onClose={() => setZoomedImageUri(null)}
+      />
 
       {/* Modale emoji picker (fond semi-transparent, fermable au tap autour) */}
       <Modal
@@ -212,9 +225,16 @@ interface MessageBubbleProps {
   isMine: boolean;
   onLongPress: () => void;
   onTapReaction: (emoji: string, hasMine: boolean) => void;
+  onImagePress: (uri: string) => void;
 }
 
-function MessageBubble({ message, isMine, onLongPress, onTapReaction }: MessageBubbleProps) {
+function MessageBubble({
+  message,
+  isMine,
+  onLongPress,
+  onTapReaction,
+  onImagePress,
+}: MessageBubbleProps) {
   if (message.type === 'system') {
     return (
       <View style={styles.systemWrap}>
@@ -222,6 +242,16 @@ function MessageBubble({ message, isMine, onLongPress, onTapReaction }: MessageB
       </View>
     );
   }
+
+  // Les bulles photo n'ont pas besoin de padding ni de fond coloré : on
+  // veut juste l'image elle-même, le fond rouge/gris fait baveux autour.
+  const isMediaPhoto = message.type === 'photo' && !!message.media_url;
+  const bubbleStyle = [
+    styles.bubble,
+    isMine ? styles.bubbleMine : styles.bubbleThem,
+    isMediaPhoto ? styles.bubbleNoPad : null,
+  ];
+
   return (
     <View
       style={[
@@ -230,10 +260,12 @@ function MessageBubble({ message, isMine, onLongPress, onTapReaction }: MessageB
       ]}
     >
       <Pressable onLongPress={onLongPress} delayLongPress={350}>
-        <View style={[styles.bubble, isMine ? styles.bubbleMine : styles.bubbleThem]}>
-          <Text style={isMine ? styles.bubbleTextMine : styles.bubbleTextThem}>
-            {message.content ?? (message.type === 'photo' ? '📷 Photo' : '🎤 Note vocale')}
-          </Text>
+        <View style={bubbleStyle}>
+          <MessageContent
+            message={message}
+            isMine={isMine}
+            onImagePress={onImagePress}
+          />
         </View>
       </Pressable>
       {/* Réactions agrégées sous le bulle */}
@@ -307,6 +339,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 18,
+  },
+  // Pour les bulles photo : pas de padding (l'image remplit la bulle).
+  bubbleNoPad: {
+    paddingHorizontal: 4,
+    paddingVertical: 4,
   },
   bubbleMine: {
     backgroundColor: colors.chat.mineBg,

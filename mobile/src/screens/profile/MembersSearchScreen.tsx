@@ -146,6 +146,11 @@ function MemberRow({ user, onPress }: MemberRowProps) {
         <Text style={styles.name} numberOfLines={1}>
           {user.first_name} {user.last_name_initial}
         </Text>
+        {/*
+          Pour les coachs/admins : on cache totalement la ceinture, seul
+          le pill rôle (rouge) s'affiche. Décision UX : les coachs sont
+          identifiés par leur fonction, pas par leur grade.
+        */}
         <View style={styles.rowMetaRow}>
           {user.role !== 'member' ? (
             <View style={[styles.rolePill, { backgroundColor: colors.primary }]}>
@@ -153,22 +158,23 @@ function MemberRow({ user, onPress }: MemberRowProps) {
                 {user.role === 'admin' ? 'Admin' : 'Coach'}
               </Text>
             </View>
-          ) : null}
-          <View
-            style={[
-              styles.beltPill,
-              {
-                backgroundColor: beltStyle.bg,
-                borderColor: beltStyle.border,
-                borderWidth: beltStyle.border ? 1 : 0,
-              },
-            ]}
-          >
-            <Text style={[styles.beltText, { color: beltStyle.text }]}>
-              {BELT_LABEL[user.belt]}
-              {user.stripes > 0 ? ` · ${user.stripes}` : ''}
-            </Text>
-          </View>
+          ) : (
+            <View
+              style={[
+                styles.beltPill,
+                {
+                  backgroundColor: beltStyle.bg,
+                  borderColor: beltStyle.border,
+                  borderWidth: beltStyle.border ? 1 : 0,
+                },
+              ]}
+            >
+              <Text style={[styles.beltText, { color: beltStyle.text }]}>
+                {BELT_LABEL[user.belt]}
+                {user.stripes > 0 ? ` · ${user.stripes}` : ''}
+              </Text>
+            </View>
+          )}
         </View>
       </View>
       <Text style={styles.chevron}>›</Text>

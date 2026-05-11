@@ -57,6 +57,7 @@ type updateMeRequest struct {
 	WeightVisibility *string  `json:"weight_visibility,omitempty" validate:"omitempty,oneof=public members private"`
 	Disciplines      *[]string `json:"disciplines,omitempty"      validate:"omitempty,dive,max=100"`
 	AvatarURL        *string  `json:"avatar_url,omitempty"        validate:"omitempty,url,max=500"`
+	AllowPhotoZoom   *bool    `json:"allow_photo_zoom,omitempty"`
 }
 
 // Patch : PATCH /api/me — modifie le profil. Tous les champs sont optionnels.
@@ -91,6 +92,7 @@ func (h *MeHandler) Patch(c *gin.Context) {
 		WeightKg:        req.WeightKg,
 		Disciplines:     req.Disciplines,
 		AvatarURL:       req.AvatarURL,
+		AllowPhotoZoom:  req.AllowPhotoZoom,
 	}
 	if req.Belt != nil {
 		b := models.Belt(*req.Belt)

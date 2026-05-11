@@ -35,6 +35,7 @@ type UpdateProfileParams struct {
 	WeightVisibility *models.WeightVisibility
 	Disciplines      *[]string
 	AvatarURL        *string
+	AllowPhotoZoom   *bool
 }
 
 // UserService : opérations sur les comptes utilisateurs (hors auth).
@@ -257,6 +258,7 @@ func (s *UserService) UpdateProfile(ctx context.Context, id uuid.UUID, p UpdateP
 		weightVis       any
 		disciplines     any
 		avatarURL       any
+		allowPhotoZoom  any
 	)
 	if p.FirstName != nil {
 		firstName = *p.FirstName
@@ -285,6 +287,9 @@ func (s *UserService) UpdateProfile(ctx context.Context, id uuid.UUID, p UpdateP
 	if p.AvatarURL != nil {
 		avatarURL = *p.AvatarURL
 	}
+	if p.AllowPhotoZoom != nil {
+		allowPhotoZoom = *p.AllowPhotoZoom
+	}
 
 	var (
 		u      models.User
@@ -301,6 +306,7 @@ func (s *UserService) UpdateProfile(ctx context.Context, id uuid.UUID, p UpdateP
 			weight_visibility = COALESCE($7::weight_visibility, weight_visibility),
 			disciplines       = COALESCE($8::text[], disciplines),
 			avatar_url        = COALESCE($9::text, avatar_url),
+			allow_photo_zoom  = COALESCE($11::boolean, allow_photo_zoom),
 			updated_at        = NOW()
 		WHERE id = $10 AND deleted_at IS NULL
 		RETURNING id, email, first_name, last_name_initial, avatar_url, bio,
@@ -308,7 +314,7 @@ func (s *UserService) UpdateProfile(ctx context.Context, id uuid.UUID, p UpdateP
 		          role, status, created_at, updated_at, last_login_at
 	`,
 		firstName, lastInitial, bio, belt, stripes,
-		weightKg, weightVis, disciplines, avatarURL, id,
+		weightKg, weightVis, disciplines, avatarURL, id, allowPhotoZoom,
 	).Scan(
 		&u.ID, &u.Email, &u.FirstName, &u.LastNameInitial,
 		&u.AvatarURL, &u.Bio, &u.Belt, &u.Stripes, &weight,
@@ -404,6 +410,9 @@ type PublicProfile struct {
 	Role            string     `json:"role"`
 	JoinedAt        time.Time  `json:"joined_at"`
 	LastLoginAt     *time.Time `json:"last_login_at,omitempty"`
+	// AllowPhotoZoom : si false, le client mobile doit empêcher le tap-to-zoom
+	// sur la photo de profil. Setting privacy choisi par le membre lui-même.
+	AllowPhotoZoom bool `json:"allow_photo_zoom"`
 }
 
 // GetPublicProfile renvoie la fiche d'un autre membre, sanitizée selon les
@@ -424,13 +433,15 @@ func (s *UserService) GetPublicProfile(
 	err := s.db.QueryRow(ctx, `
 		SELECT id, first_name, last_name_initial, avatar_url, bio,
 		       belt::text, stripes, weight_kg, weight_visibility::text,
-		       disciplines, role::text, created_at, last_login_at
+		       disciplines, role::text, created_at, last_login_at,
+		       COALESCE(allow_photo_zoom, TRUE)
 		FROM users
 		WHERE id = $1 AND deleted_at IS NULL
 	`, targetID).Scan(
 		&p.ID, &p.FirstName, &p.LastNameInitial, &p.AvatarURL, &p.Bio,
 		&p.Belt, &p.Stripes, &weight, &weightVis,
 		&p.Disciplines, &p.Role, &p.JoinedAt, &p.LastLoginAt,
+		&p.AllowPhotoZoom,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {

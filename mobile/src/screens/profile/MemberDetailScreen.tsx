@@ -25,6 +25,7 @@ import { usersApi } from '../../api/users';
 import { ApiError } from '../../api/client';
 import { Avatar } from '../../components/Avatar';
 import { Button } from '../../components/Button';
+import { ImageZoomModal } from '../../components/ImageZoomModal';
 import { colors } from '../../theme/colors';
 import type { Belt } from '../../types/models';
 import type {
@@ -55,6 +56,8 @@ const BELT_COLOR: Record<Belt, { bg: string; text: string; border?: string }> = 
 export function MemberDetailScreen({ navigation, route }: Props) {
   const { userId } = route.params;
   const queryClient = useQueryClient();
+  // Zoom plein écran de l'avatar du membre (si autorisé par le membre).
+  const [isAvatarZoomed, setIsAvatarZoomed] = useState(false);
 
   const profileQuery = useQuery({
     queryKey: ['publicProfile', userId],
@@ -182,41 +185,56 @@ export function MemberDetailScreen({ navigation, route }: Props) {
       </View>
 
       <ScrollView contentContainerStyle={styles.scroll}>
-        {/* Hero : avatar + nom + ceinture */}
+        {/* Hero : avatar (cliquable si zoom autorisé) + nom + ceinture */}
         <View style={styles.hero}>
-          <Avatar
-            initials={initials}
-            color={1}
-            size={96}
-            imageUri={p.avatar_url ?? null}
-          />
+          <Pressable
+            onPress={() => {
+              // Zoom autorisé uniquement si :
+              //   - le membre a une photo (avatar_url non null)
+              //   - le membre n'a pas désactivé le zoom dans ses réglages
+              const canZoom = !!p.avatar_url && p.allow_photo_zoom !== false;
+              if (canZoom) setIsAvatarZoomed(true);
+            }}
+          >
+            <Avatar
+              initials={initials}
+              color={1}
+              size={96}
+              imageUri={p.avatar_url ?? null}
+            />
+          </Pressable>
           <Text style={styles.userName}>
             {p.first_name} {p.last_name_initial}
           </Text>
+          {/*
+            Cas coach/admin : on cache complètement la ceinture, on n'affiche
+            que le pill rôle. Pour les membres normaux : pill ceinture seul.
+          */}
           {p.role !== 'member' ? (
             <View style={[styles.rolePill, { backgroundColor: colors.primary }]}>
               <Text style={styles.rolePillText}>
                 {p.role === 'admin' ? 'Admin' : 'Coach'}
               </Text>
             </View>
-          ) : null}
-          <View
-            style={[
-              styles.beltPill,
-              {
-                backgroundColor: beltStyle.bg,
-                borderColor: beltStyle.border,
-                borderWidth: beltStyle.border ? 1 : 0,
-              },
-            ]}
-          >
-            <Text style={[styles.beltText, { color: beltStyle.text }]}>
-              {BELT_LABEL[p.belt]}
-              {p.stripes > 0
-                ? ` · ${p.stripes} stripe${p.stripes > 1 ? 's' : ''}`
-                : ''}
-            </Text>
-          </View>
+          ) : (
+            <View
+              style={[
+                styles.beltPill,
+                {
+                  backgroundColor: beltStyle.bg,
+                  borderColor: beltStyle.border,
+                  borderWidth: beltStyle.border ? 1 : 0,
+                },
+              ]}
+            >
+              <Text style={[styles.beltText, { color: beltStyle.text }]}>
+                {BELT_LABEL[p.belt]}
+                {p.stripes > 0
+                  ? ` · ${p.stripes} stripe${p.stripes > 1 ? 's' : ''}`
+                  : ''}
+              </Text>
+            </View>
+          )}
         </View>
 
         {/* Bio */}
@@ -297,6 +315,13 @@ export function MemberDetailScreen({ navigation, route }: Props) {
           />
         )}
       </ScrollView>
+
+      {/* Zoom plein écran de l'avatar du membre */}
+      <ImageZoomModal
+        visible={isAvatarZoomed}
+        uri={p.avatar_url ?? null}
+        onClose={() => setIsAvatarZoomed(false)}
+      />
     </SafeAreaView>
   );
 }

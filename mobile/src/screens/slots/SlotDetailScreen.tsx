@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -17,7 +17,9 @@ import { freeSlotsApi, type UserBriefDTO } from '../../api/freeSlots';
 import { messagesApi, type MessageDTO } from '../../api/messages';
 import { Avatar } from '../../components/Avatar';
 import { Button } from '../../components/Button';
+import { ImageZoomModal } from '../../components/ImageZoomModal';
 import { MessageComposer } from '../../components/MessageComposer';
+import { MessageContent } from '../../components/MessageContent';
 import { useAuthStore } from '../../store/authStore';
 import { colors } from '../../theme/colors';
 import type { Belt } from '../../types/models';
@@ -50,6 +52,8 @@ export function SlotDetailScreen({ navigation, route }: SlotDetailScreenProps) {
   const slotId = route.params.slotId;
   const currentUser = useAuthStore((s) => s.user);
   const queryClient = useQueryClient();
+  // Zoom photo dans la discussion publique.
+  const [zoomedImageUri, setZoomedImageUri] = useState<string | null>(null);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['freeSlots', slotId],
@@ -212,6 +216,12 @@ export function SlotDetailScreen({ navigation, route }: SlotDetailScreenProps) {
                   key={p.id}
                   participant={p}
                   isMe={p.id === currentUser?.id}
+                  onPress={() => {
+                    // Pas de navigation vers son propre profil — c'est sur Profil tab.
+                    if (p.id !== currentUser?.id) {
+                      navigation.navigate('MemberDetail', { userId: p.id });
+                    }
+                  }}
                 />
               ))}
 
@@ -234,6 +244,12 @@ export function SlotDetailScreen({ navigation, route }: SlotDetailScreenProps) {
                       key={m.id}
                       message={m}
                       isMine={m.sender?.id === currentUser?.id}
+                      onImagePress={(uri) => setZoomedImageUri(uri)}
+                      onAuthorPress={() => {
+                        if (m.sender && m.sender.id !== currentUser?.id) {
+                          navigation.navigate('MemberDetail', { userId: m.sender.id });
+                        }
+                      }}
                     />
                   ))}
                 </View>
@@ -258,6 +274,13 @@ export function SlotDetailScreen({ navigation, route }: SlotDetailScreenProps) {
           />
         ) : null}
       </KeyboardAvoidingView>
+
+      {/* Zoom photo plein écran (photos partagées dans la discussion) */}
+      <ImageZoomModal
+        visible={!!zoomedImageUri}
+        uri={zoomedImageUri}
+        onClose={() => setZoomedImageUri(null)}
+      />
     </SafeAreaView>
   );
 }
@@ -265,13 +288,18 @@ export function SlotDetailScreen({ navigation, route }: SlotDetailScreenProps) {
 interface DiscussionMessageProps {
   message: MessageDTO;
   isMine: boolean;
+  onImagePress: (uri: string) => void;
+  onAuthorPress: () => void;
 }
 
-function DiscussionMessage({ message, isMine }: DiscussionMessageProps) {
+function DiscussionMessage({
+  message,
+  isMine,
+  onImagePress,
+  onAuthorPress,
+}: DiscussionMessageProps) {
   if (message.type === 'system') {
-    return (
-      <Text style={styles.systemMessage}>{message.content}</Text>
-    );
+    return <Text style={styles.systemMessage}>{message.content}</Text>;
   }
   const senderName = message.sender
     ? `${message.sender.first_name}${message.sender.last_name_initial ? ' ' + message.sender.last_name_initial : ''}`
@@ -279,10 +307,16 @@ function DiscussionMessage({ message, isMine }: DiscussionMessageProps) {
   const initials = message.sender
     ? message.sender.first_name[0] + (message.sender.last_name_initial[0] ?? '')
     : '?';
+
+  // Pour les photos, on enlève le padding interne de la bulle.
+  const isMediaPhoto = message.type === 'photo' && !!message.media_url;
+
   return (
     <View>
       {!isMine && message.sender ? (
-        <Text style={styles.discussionAuthor}>{senderName}</Text>
+        <Pressable onPress={onAuthorPress}>
+          <Text style={styles.discussionAuthor}>{senderName}</Text>
+        </Pressable>
       ) : null}
       <View
         style={[
@@ -291,17 +325,27 @@ function DiscussionMessage({ message, isMine }: DiscussionMessageProps) {
         ]}
       >
         {!isMine ? (
-          <Avatar initials={initials} color={3} size={24} />
+          <Pressable onPress={onAuthorPress}>
+            <Avatar
+              initials={initials}
+              color={3}
+              size={24}
+              imageUri={message.sender?.avatar_url ?? null}
+            />
+          </Pressable>
         ) : null}
         <View
           style={[
             styles.discBubble,
             isMine ? styles.bubbleMine : styles.bubbleThem,
+            isMediaPhoto ? { paddingHorizontal: 4, paddingVertical: 4 } : null,
           ]}
         >
-          <Text style={isMine ? styles.bubbleTextMine : styles.bubbleTextThem}>
-            {message.content}
-          </Text>
+          <MessageContent
+            message={message}
+            isMine={isMine}
+            onImagePress={onImagePress}
+          />
         </View>
       </View>
     </View>
@@ -311,14 +355,26 @@ function DiscussionMessage({ message, isMine }: DiscussionMessageProps) {
 interface ParticipantRowProps {
   participant: UserBriefDTO;
   isMe: boolean;
+  onPress: () => void;
 }
 
-function ParticipantRow({ participant: p, isMe }: ParticipantRowProps) {
+function ParticipantRow({ participant: p, isMe, onPress }: ParticipantRowProps) {
   const initials = p.first_name[0] + (p.last_name_initial[0] ?? '');
   const beltStyle = BELT_COLOR[p.belt];
+  /*
+   * Affichage spécifique coachs : on cache complètement le pill ceinture
+   * et on affiche uniquement le pill "Coach" rouge. Demande utilisateur
+   * (les coachs sont identifiés par leur rôle, pas par leur ceinture dans
+   * cette vue).
+   */
   return (
-    <View style={styles.partRow}>
-      <Avatar initials={initials} color={1} size={28} />
+    <Pressable style={styles.partRow} onPress={onPress} disabled={isMe}>
+      <Avatar
+        initials={initials}
+        color={1}
+        size={28}
+        imageUri={p.avatar_url ?? null}
+      />
       <View style={{ flex: 1 }}>
         <Text style={styles.partName}>
           {p.first_name} {p.last_name_initial}
@@ -329,22 +385,23 @@ function ParticipantRow({ participant: p, isMe }: ParticipantRowProps) {
         <View style={[styles.beltPill, { backgroundColor: colors.primary }]}>
           <Text style={styles.beltText}>Coach</Text>
         </View>
-      ) : null}
-      <View
-        style={[
-          styles.beltPill,
-          {
-            backgroundColor: beltStyle.bg,
-            borderColor: beltStyle.border,
-            borderWidth: beltStyle.border ? 1 : 0,
-          },
-        ]}
-      >
-        <Text style={[styles.beltText, { color: beltStyle.text }]}>
-          {BELT_LABEL[p.belt]}
-        </Text>
-      </View>
-    </View>
+      ) : (
+        <View
+          style={[
+            styles.beltPill,
+            {
+              backgroundColor: beltStyle.bg,
+              borderColor: beltStyle.border,
+              borderWidth: beltStyle.border ? 1 : 0,
+            },
+          ]}
+        >
+          <Text style={[styles.beltText, { color: beltStyle.text }]}>
+            {BELT_LABEL[p.belt]}
+          </Text>
+        </View>
+      )}
+    </Pressable>
   );
 }
 

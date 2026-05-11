@@ -7,6 +7,7 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   View,
@@ -65,6 +66,10 @@ export function EditProfileScreen({ navigation }: EditProfileScreenProps) {
   const [avatarUri, setAvatarUri] = useState<string | null>(
     user?.avatar_url ?? null,
   );
+  // Privacy : autoriser ou non les autres adhérents à agrandir ma photo
+  // de profil (zoom plein écran). Par défaut activé (comportement par défaut
+  // de la DB côté serveur).
+  const [allowPhotoZoom, setAllowPhotoZoom] = useState<boolean>(true);
 
   if (!user) return null;
 
@@ -191,6 +196,7 @@ export function EditProfileScreen({ navigation }: EditProfileScreenProps) {
       // On ne transmet avatar_url QUE s'il a réellement changé OU si l'upload
       // a réussi. `undefined` = on n'envoie pas le champ (PATCH).
       ...(avatarUrlToSave !== undefined ? { avatar_url: avatarUrlToSave ?? '' } : {}),
+      allow_photo_zoom: allowPhotoZoom,
     });
   };
 
@@ -244,6 +250,27 @@ export function EditProfileScreen({ navigation }: EditProfileScreenProps) {
                 </Pressable>
               ) : null}
             </View>
+          </View>
+
+          {/*
+            Toggle de confidentialité : autoriser ou non les autres
+            adhérents à agrandir ma photo plein écran. Default = autorisé.
+          */}
+          <View style={styles.zoomRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.zoomLabel}>Agrandissement de ma photo</Text>
+              <Text style={styles.zoomHint}>
+                Si désactivé, les autres adhérents ne pourront pas tap sur ta
+                photo pour la voir en plein écran.
+              </Text>
+            </View>
+            <Switch
+              value={allowPhotoZoom}
+              onValueChange={setAllowPhotoZoom}
+              trackColor={{ false: colors.gray300, true: colors.primary }}
+              thumbColor={colors.white}
+              ios_backgroundColor={colors.gray300}
+            />
           </View>
 
           {/* Prénom / Initiale */}
@@ -430,6 +457,17 @@ const styles = StyleSheet.create({
   avatarTitle: { fontSize: 14, fontWeight: '600', color: colors.black },
   avatarLink: { color: colors.primary, fontWeight: '600', fontSize: 13, marginTop: 4 },
   avatarRemove: { color: colors.gray500, fontSize: 12, marginTop: 4 },
+  zoomRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 12,
+    marginBottom: 6,
+    borderBottomWidth: 0.5,
+    borderBottomColor: colors.border,
+  },
+  zoomLabel: { fontSize: 13, fontWeight: '600', color: colors.black },
+  zoomHint: { fontSize: 11, color: colors.gray500, marginTop: 3, lineHeight: 15 },
 
   row: { flexDirection: 'row', gap: 8 },
   rowItem: { flex: 1 },

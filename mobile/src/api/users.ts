@@ -26,6 +26,8 @@ export interface PublicProfileDTO {
   role: 'member' | 'coach' | 'admin';
   joined_at: string;
   last_login_at?: string | null;
+  /** Si false, le client doit empêcher le tap-to-zoom de la photo. */
+  allow_photo_zoom: boolean;
 }
 
 export const usersApi = {

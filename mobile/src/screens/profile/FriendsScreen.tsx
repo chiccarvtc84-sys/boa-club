@@ -163,8 +163,15 @@ function FriendRow({ friend, onPress, onToggleNotifs, onRemove }: FriendRowProps
             {friend.first_name} {friend.last_name_initial}
           </Text>
           <Text style={styles.subline} numberOfLines={1}>
-            {BELT_LABEL[friend.belt]}
-            {friend.stripes > 0 ? ` · ${friend.stripes} stripe${friend.stripes > 1 ? 's' : ''}` : ''}
+            {/*
+              Coach/Admin : on affiche "Coach" / "Admin" à la place de la
+              ceinture. Sinon : ceinture + stripes habituels.
+            */}
+            {friend.role === 'coach'
+              ? 'Coach'
+              : friend.role === 'admin'
+                ? 'Admin'
+                : `${BELT_LABEL[friend.belt]}${friend.stripes > 0 ? ` · ${friend.stripes} stripe${friend.stripes > 1 ? 's' : ''}` : ''}`}
             {isOnline ? ' · 🟢 En ligne' : friend.last_login_at ? ` · ${formatLastSeen(friend.last_login_at)}` : ''}
           </Text>
         </View>
