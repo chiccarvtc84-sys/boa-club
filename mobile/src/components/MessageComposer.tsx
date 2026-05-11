@@ -359,19 +359,32 @@ export function MessageComposer({
         )}
       </View>
 
-      {/* Modale aperçu photo */}
+      {/*
+        Modale aperçu photo.
+        UX accessibilité :
+        - presentationStyle="pageSheet" → swipe-down natif iOS pour fermer
+        - Croix ✕ en haut-droite avec hitSlop 16 (zone tactile généreuse,
+          fonctionne même sous Dynamic Island)
+        - 2 boutons en bas dans la zone du pouce : "Annuler" + "Envoyer"
+          → l'utilisateur n'a JAMAIS à atteindre le haut de l'écran
+      */}
       <Modal
         visible={!!previewPhotoUri}
         animationType="slide"
+        presentationStyle="pageSheet"
         onRequestClose={() => setPreviewPhotoUri(null)}
       >
         <SafeAreaView style={styles.previewSafe} edges={['top', 'bottom']}>
           <View style={styles.previewHeader}>
-            <Pressable onPress={() => setPreviewPhotoUri(null)} disabled={isUploadingMedia}>
-              <Text style={styles.previewCancel}>Annuler</Text>
-            </Pressable>
             <Text style={styles.previewTitle}>Aperçu</Text>
-            <View style={{ width: 60 }} />
+            <Pressable
+              onPress={() => setPreviewPhotoUri(null)}
+              disabled={isUploadingMedia}
+              hitSlop={16}
+              style={styles.previewCloseBtn}
+            >
+              <Text style={styles.previewCloseIcon}>✕</Text>
+            </Pressable>
           </View>
           {previewPhotoUri ? (
             <Image
@@ -381,6 +394,14 @@ export function MessageComposer({
             />
           ) : null}
           <View style={styles.previewFooter}>
+            <Pressable
+              onPress={() => setPreviewPhotoUri(null)}
+              disabled={isUploadingMedia}
+              style={styles.previewCancelBtn}
+              hitSlop={8}
+            >
+              <Text style={styles.previewCancelText}>Annuler</Text>
+            </Pressable>
             <Pressable
               style={[styles.previewSendBtn, isUploadingMedia && styles.previewSendBtnDisabled]}
               onPress={sendPhoto}
@@ -497,20 +518,50 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 12,
   },
-  previewCancel: { fontSize: 15, color: colors.white, width: 60 },
-  previewTitle: { fontSize: 15, color: colors.white, fontWeight: '600' },
+  previewTitle: { fontSize: 16, color: colors.white, fontWeight: '600' },
+  // Croix ✕ ronde en haut-droite, grosse zone tactile.
+  previewCloseBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.15)',
+  },
+  previewCloseIcon: {
+    fontSize: 18,
+    color: colors.white,
+    fontWeight: '700',
+    lineHeight: 18,
+  },
   previewImage: { flex: 1, width: '100%' },
+  // Footer : 2 boutons côte-à-côte, full-width, dans la zone du pouce.
   previewFooter: {
+    flexDirection: 'row',
     paddingHorizontal: 14,
-    paddingVertical: 12,
-    alignItems: 'flex-end',
+    paddingVertical: 14,
+    gap: 10,
+    alignItems: 'center',
+  },
+  previewCancelBtn: {
+    flex: 1,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    paddingHorizontal: 22,
+    paddingVertical: 14,
+    borderRadius: 999,
+    alignItems: 'center',
+  },
+  previewCancelText: {
+    color: colors.white,
+    fontSize: 15,
+    fontWeight: '600',
   },
   previewSendBtn: {
+    flex: 1,
     backgroundColor: colors.primary,
     paddingHorizontal: 22,
-    paddingVertical: 10,
+    paddingVertical: 14,
     borderRadius: 999,
-    minWidth: 100,
     alignItems: 'center',
   },
   previewSendBtnDisabled: { opacity: 0.6 },
